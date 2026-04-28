@@ -1,8 +1,9 @@
-# Getting Started app for Discord
+# Relay RPG
 
-This project contains a basic rock-paper-scissors-style Discord app written in JavaScript, built for the [getting started guide](https://discord.com/developers/docs/getting-started).
+A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join adventures through a job board system, and build stories together through turn-based narrative scenes.
 
-![Demo of app](https://github.com/discord/discord-example-app/raw/main/assets/getting-started-demo.gif?raw=true)
+## Core Concept
+Like a relay race, each player takes their turn to advance the story, using their character traits when needed, then passes the "narrative baton" to the next player. Everyone works together toward completing the adventure.
 
 ## Project structure
 Below is a basic overview of the project structure:

@@ -1,42 +1,14 @@
 import 'dotenv/config';
-import { getRPSChoices } from './game.js';
 import { capitalize, InstallGlobalCommands } from './utils.js';
-
-// Get the game choices from game.js
-function createCommandChoices() {
-  const choices = getRPSChoices();
-  const commandChoices = [];
-
-  for (let choice of choices) {
-    commandChoices.push({
-      name: capitalize(choice),
-      value: choice.toLowerCase(),
-    });
-  }
-
-  return commandChoices;
-}
-
-// Simple test command
-const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic command',
-  type: 1,
-  integration_types: [0, 1],
-  contexts: [0, 1, 2],
-};
-
-// Command containing options
-const CHALLENGE_COMMAND = {
-  name: 'challenge',
-  description: 'Challenge to a match of rock paper scissors',
+const POST_COMMAND = {
+  name: 'post',
+  description: 'Post a job to the tavern board',
   options: [
     {
       type: 3,
-      name: 'object',
-      description: 'Pick your object',
+      name: 'description',
+      description: 'Describe the job or quest',
       required: true,
-      choices: createCommandChoices(),
     },
   ],
   type: 1,
@@ -44,6 +16,199 @@ const CHALLENGE_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [TEST_COMMAND, CHALLENGE_COMMAND];
+const JOBS_COMMAND = {
+  name: 'jobs',
+  description: 'View available jobs on the tavern board',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+// Character Creation Commands
+const CONVICTION_COMMAND = {
+  name: 'conviction',
+  description: 'Define what your character fights for (their driving motivation)',
+  options: [
+    {
+      type: 3,
+      name: 'description',
+      description: 'What drives your character? What do they fight for?',
+      required: true,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const TALENT_COMMAND = {
+  name: 'talent',
+  description: 'Define what your character excels at (their signature ability)',
+  options: [
+    {
+      type: 3,
+      name: 'description',
+      description: 'What is your character naturally gifted at?',
+      required: true,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const QUIRK_COMMAND = {
+  name: 'quirk',
+  description: 'Define your character\'s unique personality trait',
+  options: [
+    {
+      type: 3,
+      name: 'description',
+      description: 'What unique personality trait defines your character?',
+      required: true,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const USE_COMMAND = {
+  name: 'use',
+  description: 'Use one of your traits for a +2 bonus on a dice roll',
+  options: [
+    {
+      type: 3,
+      name: 'trait',
+      description: 'Which trait to use (conviction, talent, or quirk)',
+      required: true,
+      choices: [
+        {
+          name: 'Conviction - What you fight for',
+          value: 'conviction'
+        },
+        {
+          name: 'Talent - What you excel at',
+          value: 'talent'
+        },
+        {
+          name: 'Quirk - Your personality trait',
+          value: 'quirk'
+        }
+      ]
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const ROLL_COMMAND = {
+  name: 'roll',
+  description: 'Roll 2d6 for an action (optional: specify trait for +2 bonus)',
+  options: [
+    {
+      type: 3,
+      name: 'trait',
+      description: 'Use a trait for +2 bonus (conviction, talent, or quirk)',
+      required: false,
+      choices: [
+        {
+          name: 'Conviction - What you fight for',
+          value: 'conviction'
+        },
+        {
+          name: 'Talent - What you excel at',
+          value: 'talent'
+        },
+        {
+          name: 'Quirk - Your personality trait',
+          value: 'quirk'
+        }
+      ]
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const STATUS_COMMAND = {
+  name: 'status',
+  description: 'Check adventure setup and character creation progress',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const BEGIN_COMMAND = {
+  name: 'begin',
+  description: 'Lock the quest and begin character creation',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const CHARACTER_COMMAND = {
+  name: 'character',
+  description: 'View your character sheet with traits',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const TURN_COMMAND = {
+  name: 'turn',
+  description: 'Take a narrative turn: resolve previous result and describe your action',
+  options: [
+    {
+      type: 3,
+      name: 'narrative',
+      description: 'Your turn: "Resolution of last result + your action"',
+      required: true
+    },
+    {
+      type: 3,
+      name: 'trait',
+      description: 'Optional: use a trait for +2 bonus on your action',
+      required: false,
+      choices: [
+        {
+          name: 'Conviction - What you fight for',
+          value: 'conviction'
+        },
+        {
+          name: 'Talent - What you excel at',
+          value: 'talent'
+        },
+        {
+          name: 'Quirk - Your personality trait',
+          value: 'quirk'
+        }
+      ]
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const TRANSITION_COMMAND = {
+  name: 'transition',
+  description: 'Provide scene transition with "but" and "therefore" elements',
+  options: [
+    {
+      type: 3,
+      name: 'statement',
+      description: '"[How outcome plays out], but [complication], therefore [next scene setup]"',
+      required: true
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, ROLL_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRANSITION_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

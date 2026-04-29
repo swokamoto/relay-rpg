@@ -13,9 +13,11 @@ export const DISCORD_CONSTANTS = {
 
 // Game Constants
 export const GAME_CONSTANTS = {
-  MIN_PLAYERS: 3,
+  MIN_PLAYERS: 2,
+  MAX_PLAYERS: 5,
   MAX_SCENES: 4,
   TRAITS_PER_PLAYER: 3,
+  TRUTHS_PER_SCENE: 1,
   SUCCESS_THRESHOLD: 9,
   FAILURE_THRESHOLD: 5
 };
@@ -46,7 +48,15 @@ export const SCENE_STATES = {
   SETUP: 'setup',
   ACTIVE: 'active',
   TRANSITION: 'transition',
-  COMPLETE: 'complete'
+  COMPLETE: 'complete',
+  EPILOGUE: 'epilogue'
+};
+
+// Epilogue Response Types
+export const EPILOGUE_TYPES = {
+  GROWTH: 'character_growth',
+  THREAD: 'unresolved_thread', 
+  HOOK: 'future_hook'
 };
 
 // Message Templates
@@ -69,15 +79,15 @@ export const MESSAGES = {
   },
   
   SUCCESS: {
-    ADVENTURE_INITIALIZED: '🎲 **Adventure Initialized!**\n\n**Quest:** "{description}"\n**Party:** <@{participants}>\n\n⚔️ **Ready to Begin**\n\nUse `/begin` to lock this quest and start character creation!\n\n*Note: Once you begin, no one else can join this adventure.*',
+    ADVENTURE_INITIALIZED: '🎲 **Story Initialized!**\n\n**Scenario:** "{description}"\n**Participants:** <@{participants}>\n\n⚔️ **Ready to Begin**\n\nUse `/begin` to lock this story and start character creation!\n\n*Note: Once you begin, no one else can join this story.*',
     
-    QUEST_LOCKED: '🔒 **Quest Locked!** No more players can join.\n\n🎭 **Character Creation Begins!**\n\n✨ *Define your character through three core traits.*\n\n**Create your character using these commands:**\n\n📿 `/conviction "What you fight for"` - Your driving motivation\n⚔️ `/talent "What you excel at"` - Your signature ability  \n🎭 `/quirk "Your unique trait"` - Your personality quirk\n\n*Once everyone has defined all three traits, the adventure begins!*',
+    QUEST_LOCKED: '🔒 **Story Locked!** No more players can join.\n\n🎭 **Character Creation Begins!**\n\n✨ *Define your character through three core traits.*\n\n**Create your character using these commands:**\n\n📿 `/conviction "What you fight for"` - Your driving motivation\n⚔️ `/talent "What you excel at"` - Your signature ability  \n🎭 `/quirk "Your unique trait"` - Your personality quirk\n\n*Once everyone has defined all three traits, the story begins!*',
     
     GIFT_GIVEN: '🎁 **Gift Received!**\n\n**From:** <@{from}>\n**To:** <@{to}>\n**Type:** {type}\n**Gift:** "{description}"\n\n✨ *A bond is formed through this shared memory.*{nextTurn}',
     
     HEROIC_GIVEN: '⚔️ **Heroic Quality Recognized!**\n\n**From:** <@{from}>\n**To:** <@{to}>\n**Quality:** "I see {quality} in you"\n\n🌟 *This recognition will guide you in the trials ahead.*{nextTurn}',
     
-    CHARACTER_CREATION_COMPLETE: '\n\n🎉 **Character Creation Complete!** Your adventure begins now!\n\n*Use adventure commands to play...*',
+    CHARACTER_CREATION_COMPLETE: '\n\n🎉 **Character Creation Complete!** Your story begins now!\n\n*Use story commands to play...*',
     
     TRAIT_SET: '✨ **Trait Defined!**\n\n**{traitType}:** "{description}"\n\n{nextAction}',
 
@@ -89,27 +99,21 @@ export const MESSAGES = {
   },
   
   INFO: {
-    ADVENTURE_READY: '⏳ **Adventure Ready** - Use `/begin` to lock the quest and start character creation!',
-    
-    ADVENTURE_STATUS: '🎲 **Adventure Status**\n\n**Phase:** {phase}\n**Scene:** {scene}/{maxScenes}\n**Dice Pool:** {dicePool}d6\n\n*Use adventure commands to continue your quest.*',
-    
-    CHARACTER_SHEET: '📜 **Your Character Sheet**\n\n📿 **Conviction:** "{conviction}" {convictionStatus}\n⚔️ **Talent:** "{talent}" {talentStatus}\n🎭 **Quirk:** "{quirk}" {quirkStatus}\n\n📊 **Usage:** {traitsUsed}/3 traits used'
+    ADVENTURE_READY: '⏳ **Story Ready** - Use `/begin` to lock the story and start character creation!'
   },
   
   PROMPTS: {
-    TRAIT_PROMPTS: {
-      CONVICTION: 'What drives your character? What do they fight for?',
-      TALENT: 'What is your character naturally gifted at? Their signature ability?',
-      QUIRK: 'What unique personality trait defines your character?'
+    ACT_TRANSITIONS: {
+      ACT_1_TO_2: 'The initial challenge leads to greater complications...',
+      ACT_2_TO_3: 'The situation escalates as the true scope of the story becomes clear...',
+      ACT_3_TO_4: 'The climax approaches! Everything leads to this final confrontation...'
     },
     
-    TRAIT_EXAMPLES: {
-      CONVICTION: 'Example: "Protect the innocent" or "Find my lost sister"',
-      TALENT: 'Example: "Master swordsman" or "Ancient language scholar"',
-      QUIRK: 'Example: "Always optimistic" or "Talks to inanimate objects"'
-    },
-    
-    CHARACTER_CREATION_STATUS: 'Character creation progress: {completed}/{total} players ready'
+    ADVENTURE_ENDING: {
+      QUEST_HOST_PROMPT: '🎭 **Story Complete!** <@{questHost}>, as the Host, describe the final outcome and resolution of this story.',
+      EPILOGUE_PROMPT: '📖 **Epilogue Phase** \n\nEach player must now share one final post using `/epilogue`: \n\n📿 **Character Growth** - How did your character change or what did they learn?\n🧵 **Unresolved Thread** - What question or mystery remains from this story?\n🔮 **Future Hook** - What new story idea does this inspire?\n\n*These will be shared with the community to expand the world!*',
+      EPILOGUE_COMPLETE: '✨ **Story Chronicle Complete!** \n\nThis tale and its epilogue contributions have been recorded for the community. Well played, everyone!'
+    }
   }
 };
 

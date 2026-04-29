@@ -9,7 +9,6 @@ import {
   validateParticipantCount 
 } from '../utils/validation.js';
 import { 
-  formatMessage, 
   formatParticipantList, 
   getPlayerStatusMessage 
 } from '../utils/gameHelpers.js';
@@ -39,7 +38,7 @@ export async function handlePostCommand(req, res, gameStorage) {
   const job = new Job(validation.description, userId, channelId);
   gameStorage.addJob(job);
 
-  // Create instant join button for the post
+  // Create instant join button for the ephemeral response
   const joinButton = {
     type: 1, // ACTION_ROW
     components: [
@@ -51,25 +50,50 @@ export async function handlePostCommand(req, res, gameStorage) {
         emoji: {
           name: '⚔️'
         }
-      },
-      {
-        type: 2, // BUTTON  
-        style: 2, // Secondary
-        label: 'View All Jobs',
-        custom_id: 'view_all_jobs',
-        emoji: {
-          name: '📋'
-        }
       }
     ]
   };
 
-  const content = `${EMOJIS.ADVENTURE} **Adventure Posted!**\n\n` +
-                 `**Quest:** "${job.description}"\n` +
-                 `**Posted by:** <@${userId}>\n\n` +
-                 `${EMOJIS.LIGHTBULB} *Others can join instantly using the button below!*`;
+  // Send ephemeral confirmation to poster
+  const ephemeralContent = `${EMOJIS.SUCCESS} **Adventure Posted!**\n\n` +
+                          `**Story:** "${job.description}"\n\n` +
+                          `${EMOJIS.LIGHTBULB} *Click below to join your own adventure, or others can find it in the channel!*`;
 
-  return res.send(createSuccessResponse(content, false, [joinButton]));
+  // Also create a public job posting for others
+  try {
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${process.env.DISCORD_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: `${EMOJIS.ADVENTURE} **New Adventure Available!**\n\n` +
+                `**Quest:** "${job.description}"\n\n` +
+                `${EMOJIS.LIGHTBULB} *Join instantly using the button below!*`,
+        components: [{
+          type: 1, // ACTION_ROW
+          components: [{
+            type: 2, // BUTTON
+            style: 1, // Primary
+            label: 'Join Adventure',
+            custom_id: `join_job_${job.id}`,
+            emoji: { name: '⚔️' }
+          }, {
+            type: 2, // BUTTON  
+            style: 2, // Secondary
+            label: 'View All Jobs',
+            custom_id: 'view_all_jobs',
+            emoji: { name: '📋' }
+          }]
+        }]
+      })
+    });
+  } catch (error) {
+    console.error('Error posting public job message:', error);
+  }
+
+  return res.send(createSuccessResponse(ephemeralContent, true, [joinButton]));
 }
 
 /**
@@ -83,7 +107,8 @@ export async function handleJobsCommand(req, res, gameStorage) {
     return res.send(createSuccessResponse(
       `${EMOJIS.WAITING} **No Adventures Available**\n\n` +
       `Be the first to post an adventure! Use \`/post "description"\` to create one.\n\n` +
-      `${EMOJIS.LIGHTBULB} *Adventure descriptions should be engaging and 10-200 characters long.*`
+      `${EMOJIS.LIGHTBULB} *Adventure descriptions should be engaging and 10-200 characters long.*`,
+      true // Make ephemeral
     ));
   }
 
@@ -96,7 +121,8 @@ export async function handleJobsCommand(req, res, gameStorage) {
     return res.send(createSuccessResponse(
       `${EMOJIS.WAITING} **No Available Adventures**\n\n` +
       `All current adventures are in progress or completed.\n` +
-      `Use \`/post "description"\` to create a new adventure!`
+      `Use \`/post "description"\` to create a new adventure!`,
+      true // Make ephemeral
     ));
   }
 
@@ -123,5 +149,5 @@ export async function handleJobsCommand(req, res, gameStorage) {
     });
   });
 
-  return res.send(createSuccessResponse(content, false, components));
+  return res.send(createSuccessResponse(content, true, components)); // Make ephemeral
 }

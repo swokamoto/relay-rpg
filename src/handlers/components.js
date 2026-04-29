@@ -4,17 +4,16 @@ import {
   getUserId, 
   getChannelId,
   createThread,
-  addUserToThread,
-  updateMessage
+  addUserToThread
 } from '../utils/discord.js';
 import { 
-  formatMessage, 
   formatParticipantList, 
   getPlayerStatusMessage,
   truncateForThreadName
 } from '../utils/gameHelpers.js';
 import { config } from '../config/config.js';
 import { MESSAGES, EMOJIS, GAME_CONSTANTS } from '../config/constants.js';
+import process from 'process';
 
 /**
  * Handle job join button clicks
@@ -48,8 +47,11 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
     const missing = [];
     
     if (!player) {
-      missing.push('📿 `/conviction`', '⚔️ `/talent`', '🎭 `/quirk`');
+      missing.push('📚 `/name`', '📿 `/conviction`', '⚔️ `/talent`', '🎭 `/quirk`');
     } else {
+      if (!player.characterName || player.characterName.trim().length === 0) {
+        missing.push('📚 `/name`');
+      }
       const sheet = player.getCharacterSheet();
       if (!sheet.conviction) missing.push('📿 `/conviction`');
       if (!sheet.talent) missing.push('⚔️ `/talent`');
@@ -66,7 +68,7 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
   }
   
   // Check if already joined - if so, redirect to existing thread
-  if (job.isUserInvolved(userId)) {
+  if (job.participants.includes(userId)) {
     const activeThreads = gameStorage.getActiveThreads();
     const threadInfo = activeThreads[jobId];
     
@@ -108,17 +110,24 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
         config.game.threadAutoArchiveDuration
       );
       
-      // Store thread info
+      console.log('Thread created:', threadData); // Debug log
+      
+      if (!threadData || !threadData.id) {
+        throw new Error('Thread creation failed - no thread ID returned');
+      }
+      
+      // Store thread info - only include actual participants
       threadInfo = {
         jobId: jobId,
         threadId: threadData.id,
-        participants: [job.postedBy, userId],
+        participants: [userId], // Only the joining user
         created: new Date()
       };
       gameStorage.addThread(jobId, threadInfo);
       
-      // Add both users to thread
-      await addUserToThread(threadData.id, job.postedBy);
+      console.log('Stored thread info:', threadInfo); // Debug log
+      
+      // Only add the joining user to thread
       await addUserToThread(threadData.id, userId);
       
     } else {
@@ -127,61 +136,23 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
       await addUserToThread(threadInfo.threadId, userId);
     }
     
-    // Auto-create adventure and try to start if ready
+    // Don't auto-create adventures - let /begin handle it
     const allParticipants = job.getAllParticipants();
-    let adventure = gameStorage.findAdventureByThread(threadInfo.threadId);
     
-    if (!adventure && allParticipants.length >= GAME_CONSTANTS.MIN_PLAYERS) {
-      // Create adventure automatically when we have minimum players
-      const Adventure = (await import('../models/Adventure.js')).Adventure;
-      adventure = new Adventure(jobId, threadInfo.threadId, allParticipants);
-      gameStorage.addAdventure(adventure);
-      
-      // Check if adventure can start immediately (all players have characters)
-      const canStart = adventure.canStart(gameStorage);
-      if (canStart.can) {
-        const startResult = adventure.begin(gameStorage);
-        if (startResult.success) {
-          // Adventure started immediately!
-          const content = `🎉 **Adventure Started!**\n\n` +
-            `**Quest:** "${job.description}"\n` +
-            `**Party:** <@${allParticipants.join('>, <@')}>\n\n` +
-            `⚔️ **Scene 1 begins!** ${startResult.message}\n\n` +
-            `🎲 **Commands:** \`/roll\` or \`/roll trait:conviction\` etc.`;
-          
-          return res.send(createSuccessResponse(content, true));
-        }
-      }
+    // Simple success response for the user (ephemeral)
+    let content = `${EMOJIS.ADVENTURE} **Joined Adventure!**\n\n` +
+      `**Story:** "${job.description}"\n` +
+      `**Players:** ${allParticipants.length}\n\n`;
+    
+    // Add thread link with safety check
+    if (threadInfo && threadInfo.threadId) {
+      content += `Continue in the adventure thread: <#${threadInfo.threadId}>! 🎲`;
+    } else {
+      content += `Thread is being created... please check the channel list! 🎲`;
+      console.error('Thread info missing or invalid:', threadInfo);
     }
     
-    // Default response for when adventure isn't started yet
-    const readyStatus = job.isReadyToStart();
-    const statusMessage = getPlayerStatusMessage(readyStatus.totalParticipants, GAME_CONSTANTS.MIN_PLAYERS);
-    
-    let content = formatMessage(MESSAGES.SUCCESS.JOINED_ADVENTURE, {
-      description: job.description,
-      count: readyStatus.totalParticipants,
-      participants: formatParticipantList(job.getAllParticipants()),
-      threadId: threadInfo.threadId,
-      status: statusMessage
-    });
-    
-    // Add character readiness info if we have enough players but not all have characters
-    if (allParticipants.length >= GAME_CONSTANTS.MIN_PLAYERS && !adventure) {
-      const incompleteCount = allParticipants.filter(userId => 
-        !gameStorage.hasCompleteCharacter(userId)
-      ).length;
-      
-      if (incompleteCount > 0) {
-        content += `\n\n⏳ **Waiting for character creation:** ${incompleteCount} player(s) need to complete their character using \`/conviction\`, \`/talent\`, and \`/quirk\` commands.`;
-        content += `\n\n✨ *Adventure will start automatically when all players have complete characters!*`;
-      }
-    } else if (allParticipants.length < GAME_CONSTANTS.MIN_PLAYERS) {
-      const needed = GAME_CONSTANTS.MIN_PLAYERS - allParticipants.length;
-      content += `\n\n👥 **Need ${needed} more player(s)** to start the adventure.`;
-    }
-    
-    return res.send(createSuccessResponse(content, true));
+    return res.send(createSuccessResponse(content, true)); // Always ephemeral
     
   } catch (error) {
     console.error('Error creating thread:', error);

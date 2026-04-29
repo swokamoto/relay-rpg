@@ -8,8 +8,50 @@ import {
   validateTraitDescription, 
   validateCharacterCompletion 
 } from '../utils/validation.js';
-import { formatMessage } from '../utils/gameHelpers.js';
 import { MESSAGES, EMOJIS, ADVENTURE_PHASES, SETUP_PHASES, CHARACTER_TRAITS } from '../config/constants.js';
+
+/**
+ * Handle /name command - Set character name
+ */
+export async function handleNameCommand(req, res, gameStorage) {
+  const userId = getUserId(req);
+  const characterName = req.body.data.options[0].value;
+  
+  // Validate character name
+  if (!characterName || characterName.trim().length < 2) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} Character name must be at least 2 characters long.`, true));
+  }
+  
+  if (characterName.trim().length > 50) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} Character name must be 50 characters or less.`, true));
+  }
+  
+  // Get or create global player character
+  const player = gameStorage.getOrCreatePlayer(userId);
+  const isUpdate = !!player.characterName;
+  
+  // Set the character name
+  player.setCharacterName(characterName);
+  
+  let content = `${EMOJIS.CHARACTER} **Character Name ${isUpdate ? 'Updated' : 'Set'}!**\n\n`;
+  content += `**Name:** "${player.getCharacterName()}"\n\n`;
+  
+  // Show completion status
+  if (player.isCharacterComplete()) {
+    content += `✅ **Character Complete!** Ready for adventures.`;
+  } else {
+    const missing = [];
+    if (!player.characterTraits.conviction.description) missing.push('📿 \`/conviction\`');
+    if (!player.characterTraits.talent.description) missing.push('⚔️ \`/talent\`');
+    if (!player.characterTraits.quirk.description) missing.push('🎭 \`/quirk\`');
+    
+    if (missing.length > 0) {
+      content += `**Still needed:** ${missing.join(', ')}`;
+    }
+  }
+  
+  return res.send(createSuccessResponse(content, true));
+}
 
 /**
  * Handle /conviction command - Set character's conviction trait
@@ -73,15 +115,16 @@ async function handleTraitCommand(req, res, gameStorage, traitType) {
     // Check if character is now complete
     const updatedSheet = player.getCharacterSheet();
     if (player.isCharacterComplete()) {
-      content += `🎉 **Character Complete!**\n\n📿 **Conviction:** "${updatedSheet.conviction}"\n⚔️ **Talent:** "${updatedSheet.talent}"\n🎭 **Quirk:** "${updatedSheet.quirk}"\n\n✨ *Your character is ready for adventure! You can now join any quest.*`;
+      content += `🎉 **Character Complete!**\n\n📛 **Name:** "${player.getCharacterName()}"\n📿 **Conviction:** "${updatedSheet.conviction}"\n⚔️ **Talent:** "${updatedSheet.talent}"\n🎭 **Quirk:** "${updatedSheet.quirk}"\n\n✨ *Your character is ready for any story! You can now join any scenario.*`;
     } else {
       // Show what still needs to be set
       const missing = [];
-      if (!updatedSheet.conviction) missing.push('📿 `/conviction`');
-      if (!updatedSheet.talent) missing.push('⚔️ `/talent`');
-      if (!updatedSheet.quirk) missing.push('🎭 `/quirk`');
+      if (!player.characterName) missing.push('📛 \`/name\`');
+      if (!updatedSheet.conviction) missing.push('📿 \`/conviction\`');
+      if (!updatedSheet.talent) missing.push('⚔️ \`/talent\`');
+      if (!updatedSheet.quirk) missing.push('🎭 \`/quirk\`');
       
-      content += `📋 **Still Need:** ${missing.join(', ')}\n\n*Complete all traits to join adventures!*`;
+      content += `📋 **Still Need:** ${missing.join(', ')}\n\n*Complete all fields to join adventures!*`;
     }
       
     return res.send(createSuccessResponse(content, true)); // Make ephemeral
@@ -103,6 +146,7 @@ export async function handleCharacterCommand(req, res, gameStorage) {
     return res.send(createSuccessResponse(
       `${EMOJIS.CHARACTER} **No Character Yet!**\n\n` +
       `Create your character using:\n` +
+      `� \`/name "Character name"\`\n` +
       `📿 \`/conviction "What you fight for"\`\n` +
       `⚔️ \`/talent "What you excel at"\`\n` +
       `🎭 \`/quirk "Your unique trait"\`\n\n` +
@@ -115,6 +159,13 @@ export async function handleCharacterCommand(req, res, gameStorage) {
   const isComplete = player.isCharacterComplete();
   
   let content = `${EMOJIS.CHARACTER} **Your Character**\n\n`;
+  
+  // Show character name
+  if (player.characterName) {
+    content += `📚 **Name:** "${player.getCharacterName()}"\n`;
+  } else {
+    content += `📚 **Name:** *Not set* - use \`/name\`\n`;
+  }
   
   // Show traits with their usage status
   Object.entries(characterSheet.traits).forEach(([traitType, traitData]) => {
@@ -134,12 +185,13 @@ export async function handleCharacterCommand(req, res, gameStorage) {
     content += `\n💡 **Usage:** In adventures, use \`/roll trait:conviction\` etc. for +2 bonus (once per adventure)`;
   } else {
     const missing = [];
+    if (!player.characterName) missing.push('📚 `/name`');
     if (!characterSheet.conviction) missing.push('📿 `/conviction`');
     if (!characterSheet.talent) missing.push('⚔️ `/talent`');
     if (!characterSheet.quirk) missing.push('🎭 `/quirk`');
     
     content += `\n📋 **Still Need:** ${missing.join(', ')}\n`;
-    content += `\n*Complete all traits to join adventures!*`;
+    content += `\n*Complete all fields to join adventures!*`;
   }
   
   return res.send(createSuccessResponse(content, true)); // Make ephemeral

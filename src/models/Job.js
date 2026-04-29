@@ -29,14 +29,6 @@ export class Job {
       };
     }
 
-    // Check if user is the job poster
-    if (userId === this.postedBy) {
-      return {
-        success: false,
-        error: 'Job poster is automatically included'
-      };
-    }
-
     // Check if job is still open
     if (this.status !== 'open') {
       return {
@@ -45,11 +37,19 @@ export class Job {
       };
     }
 
+    // Check max participants
+    if (this.participants.length >= GAME_CONSTANTS.MAX_PLAYERS - 1) { // -1 because poster takes one slot
+      return {
+        success: false,
+        error: 'Job is full'
+      };
+    }
+
     this.participants.push(userId);
 
     return {
       success: true,
-      totalParticipants: this.getTotalParticipants()
+      totalParticipants: this.participants.length
     };
   }
 
@@ -77,28 +77,40 @@ export class Job {
   }
 
   /**
-   * Get total number of participants including job poster
-   * @returns {number} - Total participant count
-   */
-  getTotalParticipants() {
-    return this.participants.length + 1; // +1 for job poster
-  }
-
-  /**
-   * Get all participant IDs including job poster
-   * @returns {Array} - Array of all participant IDs
+   * Get all participant IDs (does not include job poster unless they joined)
+   * @returns {Array} - Array of participant IDs
    */
   getAllParticipants() {
-    return [this.postedBy, ...this.participants];
+    return [...this.participants];
   }
 
   /**
-   * Check if user is involved in this job (poster or participant)
+   * Get total count including poster (for display purposes)
+   * @returns {number} - Total participant count including poster
+   */
+  getTotalParticipants() {
+    return this.participants.length + 1; // +1 for poster
+  }
+
+  /**
+   * Check if user is involved in this job (only actual participants)
    * @param {string} userId - User ID to check
    * @returns {boolean} - Whether user is involved
    */
   isUserInvolved(userId) {
-    return userId === this.postedBy || this.participants.includes(userId);
+    return this.participants.includes(userId);
+  }
+
+  /**
+   * Check if user can join this job
+   * @param {string} userId - User ID to check
+   * @returns {boolean} - Whether user can join
+   */
+  canUserJoin(userId) {
+    if (userId === this.postedBy) {
+      return !this.participants.includes(userId); // Poster can join if not already a participant
+    }
+    return this.status === 'open' && !this.participants.includes(userId);
   }
 
   /**
@@ -106,7 +118,7 @@ export class Job {
    * @returns {Object} - Ready status
    */
   isReadyToStart() {
-    const totalParticipants = this.getTotalParticipants();
+    const totalParticipants = this.participants.length; // Don't auto-include poster
     
     return {
       ready: totalParticipants >= GAME_CONSTANTS.MIN_PLAYERS,

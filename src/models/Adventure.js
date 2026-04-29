@@ -3,12 +3,14 @@ import {
   SETUP_PHASES, 
   CHARACTER_TRAITS, 
   GAME_CONSTANTS,
-  SCENE_STATES
+  SCENE_STATES,
+  EPILOGUE_TYPES
 } from '../config/constants.js';
 import { 
   generateAdventureId, 
   deduplicate
 } from '../utils/gameHelpers.js';
+import { Player } from './Player.js';
 
 /**
  * Adventure class to manage game state
@@ -27,8 +29,20 @@ export class Adventure {
     this.sceneFailures = 0;
     this.failedScenes = 0; // Tracks failures for final scene penalty
     this.created = new Date();
+    this.lastActivityAt = new Date(); // Track last activity for leave command
     this.locked = false;
     this.questDefined = false;
+    this.questHost = null; // Player who will provide final outcome
+    this.openingScene = null; // Scene description from /begin
+    
+    // Truth tracking per scene
+    this.sceneTruths = {}; // { scene: { userId: truthText } }
+    this.currentSceneTruths = {}; // Reset each scene
+    
+    // Epilogue tracking
+    this.epilogueResponses = {};
+    this.epiloguePhase = false;
+    this.finaleContent = null; // Finale description from host
     
     // Track trait usage per adventure (not global)
     this.adventureTraitUsage = {};
@@ -46,7 +60,9 @@ export class Adventure {
       pendingResolution: null,    // Roll result that needs resolving
       turnHistory: [],           // History of narrative turns
       waitingForFirstTurn: true, // Scene needs opening turn
-      pendingTransition: null    // Scene completion waiting for but/therefore transition
+      pendingTransition: null,   // Scene completion waiting for but/therefore transition
+      turnLock: null,            // Prevent simultaneous turns
+      transitionLock: null       // Prevent simultaneous transitions
     };
   }
 
@@ -98,9 +114,10 @@ export class Adventure {
   /**
    * Begin the adventure (start immediately if characters are complete)
    * @param {GameStorage} gameStorage - Game storage for character validation
+   * @param {string} sceneDescription - Opening scene description
    * @returns {Object} - Success result
    */
-  begin(gameStorage) {
+  begin(gameStorage, sceneDescription) {
     const canStartResult = this.canStart(gameStorage);
     if (!canStartResult.can) {
       return {
@@ -115,10 +132,62 @@ export class Adventure {
     this.currentPhase = SETUP_PHASES.COMPLETE;
     this.scene = 1;
     this.sceneState = SCENE_STATES.ACTIVE;
+    this.openingScene = sceneDescription;
 
     return {
       success: true,
-      message: 'Adventure started! All characters are ready. Scene 1 begins...'
+      message: `Adventure started! ${sceneDescription}`,
+      openingScene: sceneDescription
+    };
+  }
+
+  /**
+   * Declare a truth about the current scene
+   * @param {string} userId - User declaring the truth
+   * @param {string} truthDescription - The truth being declared
+   * @returns {Object} - Result
+   */
+  declareTruth(userId, truthDescription) {
+    // Update activity timestamp
+    this.lastActivityAt = new Date();
+    
+    if (!this.isParticipant(userId)) {
+      return {
+        success: false,
+        error: 'You are not a participant in this adventure! Only the original participants who were in the job when it started can declare truths.'
+      };
+    }
+
+    if (this.phase !== ADVENTURE_PHASES.PLAYING) {
+      return {
+        success: false,
+        error: 'Adventure must be active to declare truths!'
+      };
+    }
+
+    // Check if player has already used their truth for this scene
+    if (this.currentSceneTruths[userId]) {
+      return {
+        success: false,
+        error: `You have already declared your truth for Scene ${this.scene}! Each player gets 1 truth per scene.`
+      };
+    }
+
+    // Add the truth
+    this.currentSceneTruths[userId] = {
+      description: truthDescription.trim(),
+      timestamp: new Date()
+    };
+
+    // Store in permanent scene record
+    if (!this.sceneTruths[this.scene]) {
+      this.sceneTruths[this.scene] = {};
+    }
+    this.sceneTruths[this.scene][userId] = this.currentSceneTruths[userId];
+
+    return {
+      success: true,
+      truth: this.currentSceneTruths[userId]
     };
   }
 
@@ -149,6 +218,54 @@ export class Adventure {
   }
 
   /**
+   * Clean up stale turn locks (older than 30 seconds)
+   */
+  cleanupStaleTurnLock() {
+    if (this.narrative.turnLock) {
+      const lockAge = Date.now() - new Date(this.narrative.turnLock.timestamp).getTime();
+      const LOCK_TIMEOUT = 30000; // 30 seconds
+      
+      if (lockAge > LOCK_TIMEOUT) {
+        console.warn(`Clearing stale turn lock for player ${this.narrative.turnLock.playerId} (age: ${lockAge}ms)`);
+        this.narrative.turnLock = null;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Clean up stale transition locks (older than 30 seconds)
+   */
+  cleanupStaleTransitionLock() {
+    if (this.narrative.transitionLock) {
+      const lockAge = Date.now() - new Date(this.narrative.transitionLock.timestamp).getTime();
+      const LOCK_TIMEOUT = 30000; // 30 seconds
+      
+      if (lockAge > LOCK_TIMEOUT) {
+        console.warn(`Clearing stale transition lock for player ${this.narrative.transitionLock.playerId} (age: ${lockAge}ms)`);
+        this.narrative.transitionLock = null;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Clean up all stale locks (useful for maintenance)
+   */
+  cleanupStaleLocks() {
+    const turnLockCleared = this.cleanupStaleTurnLock();
+    const transitionLockCleared = this.cleanupStaleTransitionLock();
+    
+    return {
+      turnLockCleared,
+      transitionLockCleared,
+      anyCleared: turnLockCleared || transitionLockCleared
+    };
+  }
+
+  /**
    * Handle narrative turn - resolve previous result and take new action
    * @param {string} userId - User ID taking the turn
    * @param {string} narrative - Combined resolution + action text
@@ -157,94 +274,116 @@ export class Adventure {
    * @returns {Object} - Turn result
    */
   takeTurn(userId, narrative, traitType = null, gameStorage) {
-    // Validate player can take turn
-    if (!this.isParticipant(userId)) {
+    // Clean up any stale locks first
+    this.cleanupStaleTurnLock();
+    
+    // Update activity timestamp
+    this.lastActivityAt = new Date();
+
+    // Check for turn lock to prevent race conditions
+    if (this.narrative.turnLock) {
       return {
         success: false,
-        error: 'You are not a participant in this adventure!'
+        error: `Another player is currently taking their turn. Please wait a moment and try again.`
       };
     }
 
-    if (this.phase !== ADVENTURE_PHASES.PLAYING) {
-      return {
-        success: false,
-        error: 'Adventure must be active to take turns!'
-      };
-    }
+    // Set turn lock immediately
+    this.narrative.turnLock = {
+      playerId: userId,
+      timestamp: new Date()
+    };
 
-    // Check if scene is waiting for transition
-    if (this.narrative.pendingTransition) {
-      const completingPlayer = this.narrative.pendingTransition.completingPlayer;
-      return {
-        success: false,
-        error: `Scene completed! Waiting for <@${completingPlayer}> to provide scene transition using \`/transition\`.`
-      };
-    }
-
-    if (this.narrative.lastPlayer === userId) {
-      return {
-        success: false,
-        error: 'You cannot take two turns in a row! Wait for another player to go.'
-      };
-    }
-
-    // Validate narrative input
-    if (!narrative || narrative.trim().length < 10) {
-      return {
-        success: false,
-        error: 'Please provide a more detailed narrative (at least 10 characters).'
-      };
-    }
-
-    // If there's a pending resolution, player should address it
-    if (this.narrative.pendingResolution && !this.narrative.waitingForFirstTurn) {
-      const pendingOutcome = this.narrative.pendingResolution.outcome;
-      const hasResolutionWords = /\b(but|and|however|although|though|yet|still|nevertheless)\b/i.test(narrative);
-      
-      if (!hasResolutionWords && pendingOutcome !== 'success') {
+    try {
+      // Validate player can take turn
+      if (!this.isParticipant(userId)) {
+        this.narrative.turnLock = null; // Clear lock on error
         return {
           success: false,
-          error: `Please resolve the previous ${pendingOutcome} roll before your action. Use words like "but", "and", "however" to address what happened.`
+          error: 'You are not a participant in this adventure! Only the original participants who were in the job when it started can take turns.'
         };
       }
-    }
 
-    // Make the roll for their action
-    const rollResult = this.rollDice(userId, traitType, gameStorage);
-    if (!rollResult.success) {
-      return rollResult; // Pass through roll errors
-    }
-
-    // Get narrative prompts based on outcome
-    const narrativePrompt = this.getNarrativePrompt(rollResult.outcome, rollResult.total);
-
-    // Record the turn
-    const turn = {
-      player: userId,
-      narrative: narrative.trim(),
-      roll: rollResult,
-      timestamp: new Date(),
-      turnNumber: this.narrative.turnHistory.length + 1
-    };
-    
-    this.narrative.turnHistory.push(turn);
-    this.narrative.lastPlayer = userId;
-    this.narrative.pendingResolution = rollResult;
-    this.narrative.waitingForFirstTurn = false;
-
-    return {
-      success: true,
-      turn: turn,
-      narrativePrompt: narrativePrompt,
-      nextPlayerPrompt: this.getNextPlayerPrompt(rollResult),
-      sceneStatus: {
-        scene: this.scene,
-        successes: this.sceneSuccesses,
-        failures: this.sceneFailures,
-        complete: rollResult.scene.complete,
-        result: rollResult.scene.result
+      if (this.phase !== ADVENTURE_PHASES.PLAYING) {
+        this.narrative.turnLock = null; // Clear lock on error
+        return {
+          success: false,
+          error: 'Adventure must be active to take turns!'
+        };
       }
-    };
+
+      // Check if scene is waiting for transition
+      if (this.narrative.pendingTransition) {
+        this.narrative.turnLock = null; // Clear lock on error
+        const completingPlayer = this.narrative.pendingTransition.completingPlayer;
+        return {
+          success: false,
+          error: `Scene completed! Waiting for <@${completingPlayer}> to provide scene transition using \`/transition\`.`
+        };
+      }
+
+      if (this.narrative.lastPlayer === userId) {
+        this.narrative.turnLock = null; // Clear lock on error
+        return {
+          success: false,
+          error: 'You cannot take two turns in a row! Wait for another player to go.'
+        };
+      }
+
+      // Validate narrative input
+      if (!narrative || narrative.trim().length < 10) {
+        this.narrative.turnLock = null; // Clear lock on error
+        return {
+          success: false,
+          error: 'Please provide a more detailed narrative (at least 10 characters).'
+        };
+      }
+
+      // Make the roll for their action
+      const rollResult = this.rollDice(userId, traitType, gameStorage);
+      if (!rollResult.success) {
+        this.narrative.turnLock = null; // Clear lock on error
+        return rollResult; // Pass through roll errors
+      }
+
+      // Get narrative prompts based on outcome
+      const narrativePrompt = this.getNarrativePrompt(rollResult.outcome, rollResult.total);
+
+      // Record the turn
+      const turn = {
+        player: userId,
+        narrative: narrative.trim(),
+        roll: rollResult,
+        timestamp: new Date(),
+        turnNumber: this.narrative.turnHistory.length + 1
+      };
+      
+      this.narrative.turnHistory.push(turn);
+      this.narrative.lastPlayer = userId;
+      this.narrative.pendingResolution = rollResult;
+      this.narrative.waitingForFirstTurn = false;
+
+      // Clear turn lock after successful completion
+      this.narrative.turnLock = null;
+
+      return {
+        success: true,
+        turn: turn,
+        narrativePrompt: narrativePrompt,
+        nextPlayerPrompt: this.getNextPlayerPrompt(rollResult),
+        sceneStatus: {
+          scene: this.scene,
+          successes: this.sceneSuccesses,
+          failures: this.sceneFailures,
+          complete: rollResult.scene.complete,
+          result: rollResult.scene.result
+        }
+      };
+    } catch (error) {
+      // Clear lock on any unexpected error
+      this.narrative.turnLock = null;
+      throw error;
+    }
   }
 
   /**
@@ -302,7 +441,21 @@ export class Adventure {
    * @param {string} transition - The full transition statement with but and therefore
    * @returns {Object} - Transition result
    */
-  handleSceneTransition(userId, outcome, transition) {
+  handleSceneTransition(userId, transitionStatement) {
+    // Clean up any stale locks first
+    this.cleanupStaleTransitionLock();
+    
+    // Update activity timestamp
+    this.lastActivityAt = new Date();
+
+    // Check for transition lock to prevent race conditions
+    if (this.narrative.transitionLock) {
+      return {
+        success: false,
+        error: `Scene transition is already being processed. Please wait a moment and try again.`
+      };
+    }
+
     // Validate there's a pending transition
     if (!this.narrative.pendingTransition) {
       return {
@@ -320,50 +473,50 @@ export class Adventure {
       };
     }
 
-    // Validate outcome
-    if (!outcome || !['success', 'failure'].includes(outcome.toLowerCase())) {
-      return {
-        success: false,
-        error: 'You must declare the scene outcome as either "success" or "failure".'
-      };
-    }
-
-    // Validate transition contains both but AND therefore
-    const transitionText = transition.trim();
-    const hasBut = /\b(but|however|although|yet|unfortunately|sadly)\b/i.test(transitionText);
-    const hasTherefore = /\b(therefore|so|thus|consequently|as a result|which means|leading to)\b/i.test(transitionText);
-    
-    if (!hasBut || !hasTherefore) {
-      return {
-        success: false,
-        error: 'Scene transitions must include BOTH "but" (complication) AND "therefore" (next scene setup) elements! Example: "The scene succeeds, but the noise attracts guards, therefore we must now escape before being caught."'
-      };
-    }
-
-    const sceneOutcome = outcome.toLowerCase() === 'success';
-    
-    // Apply the transition and advance scene
-    const transitionResult = this.advanceScene(sceneOutcome);
-    
-    // Record the transition in history
-    const transitionRecord = {
-      player: userId,
-      declaredOutcome: outcome.toLowerCase(),
-      transition: transitionText,
-      fromScene: this.narrative.pendingTransition.sceneNumber,
-      toScene: this.scene,
-      rollsSummary: this.narrative.pendingTransition.rollsSummary,
+    // Set transition lock
+    this.narrative.transitionLock = {
+      playerId: userId,
       timestamp: new Date()
     };
 
-    // Clear the pending transition
-    this.narrative.pendingTransition = null;
-    
-    return {
-      success: true,
-      transition: transitionRecord,
-      sceneAdvancement: transitionResult
-    };
+    try {
+      const transition = transitionStatement.trim();
+      
+      // Auto-detect outcome from scene status
+      const sceneResult = this.sceneSuccesses >= 3 ? 'success' : 'failure';
+      
+      // Store the completed transition
+      const transitionRecord = {
+        userId,
+        sceneResult,
+        transition,
+        timestamp: new Date()
+      };
+
+      // Advance the scene
+      const advancementResult = this.advanceScene(sceneResult === 'success');
+      
+      // Clear pending transition and lock
+      this.narrative.pendingTransition = null;
+      this.narrative.transitionLock = null;
+
+      return {
+        success: true,
+        transition: transitionRecord,
+        sceneAdvancement: advancementResult
+      };
+    } catch (error) {
+      // Clear lock on error
+      this.narrative.transitionLock = null;
+      console.error('Error in handleSceneTransition:', error);
+      console.error('Adventure state:', {
+        scene: this.scene,
+        sceneState: this.sceneState,
+        phase: this.phase,
+        pendingTransition: this.narrative.pendingTransition
+      });
+      throw error;
+    }
   }
 
   /**
@@ -380,11 +533,8 @@ export class Adventure {
     const outcomeEmoji = sceneResult === 'success' ? '🎉' : '💥';
     
     return `${outcomeEmoji} **Scene ${sceneNumber} ${outcomeText}!** (${rolls.successes} successes, ${rolls.failures} failures)\n\n` +
-           `<@${pendingTransition.completingPlayer}>, your roll completed the scene with a ${sceneResult}!\n\n` +
-           `**Now describe the transition using this format:**\n` +
-           `"[How the ${sceneResult} plays out], but [complication], therefore [next scene setup]"\n\n` +
-           `*Use \`/transition "[Full transition statement]"\`*\n\n` +
-           `**Example:** \`/transition "We escape the castle successfully, but the alarm brings reinforcements, therefore we must now outrun pursuing guards through the forest"\``;
+           `<@${pendingTransition.completingPlayer}>, describe the transition: "[How it plays out], but [complication], therefore [next scene]"\n\n` +
+           `*Use \`/transition "[statement]"\`*`;
   }
 
   /**
@@ -395,6 +545,7 @@ export class Adventure {
     this.narrative.pendingResolution = null;
     this.narrative.waitingForFirstTurn = true;
     this.narrative.pendingTransition = null;
+    this.currentSceneTruths = {}; // Reset truth usage for new scene
   }
 
   /**
@@ -519,15 +670,18 @@ export class Adventure {
   advanceScene(sceneSuccess) {
     // Check if we're completing the final scene
     if (this.scene >= GAME_CONSTANTS.MAX_SCENES) {
-      // Final scene is complete - end the adventure
+      // Final scene is complete - mark adventure as completed but don't start epilogue yet
       this.phase = ADVENTURE_PHASES.COMPLETED;
+      
       return {
         success: true,
         adventureComplete: true,
+        finalSceneComplete: true,
         result: sceneSuccess ? 'success' : 'failure',
         message: sceneSuccess ? 
-          'Adventure completed successfully! The final challenge was overcome!' : 
-          'Adventure ended in failure. The final challenge proved too difficult.'
+          'The final challenge has been overcome! The story reaches its climax!' : 
+          'The final challenge proved insurmountable. The story ends in tragedy.',
+        needsQuestHostOutcome: true // Signal that Host needs to provide final outcome
       };
     }
 
@@ -542,11 +696,13 @@ export class Adventure {
         success: true,
         adventureComplete: true,
         result: 'failure',
-        message: 'Adventure failed! Too many scenes lost.'
+        message: 'Adventure failed! Too many scenes lost.',
+        needsQuestHostOutcome: true
       };
     }
 
     // Advance to next scene
+    const previousScene = this.scene;
     this.scene++;
     
     // Check if this is the final scene
@@ -559,6 +715,7 @@ export class Adventure {
       return {
         success: true,
         finalScene: true,
+        actTransition: this.getActTransitionMessage(previousScene, this.scene),
         startingFailures: this.failedScenes,
         message: `Final scene begins with ${this.failedScenes} failure(s) already counted!`
       };
@@ -575,8 +732,26 @@ export class Adventure {
     return {
       success: true,
       scene: this.scene,
+      actTransition: this.getActTransitionMessage(previousScene, this.scene),
       message: `Scene ${this.scene} begins!`
     };
+  }
+
+  /**
+   * Get enhanced act transition message
+   * @param {number} fromScene - Previous scene number
+   * @param {number} toScene - New scene number
+   * @returns {string|null} - Transition message if it's a major act transition
+   */
+  getActTransitionMessage(fromScene, toScene) {
+    if (fromScene === 1 && toScene === 2) {
+      return '🎭 **Act I → Act II**: The initial challenge leads to greater complications...';
+    } else if (fromScene === 2 && toScene === 3) {
+      return '⚡ **Act II → Act III**: The situation escalates as the true scope of the story becomes clear...';
+    } else if (fromScene === 3 && toScene === 4) {
+      return '🔥 **Act III → Act IV**: The climax approaches! Everything leads to this final confrontation...';
+    }
+    return null;
   }
 
   /**
@@ -594,6 +769,115 @@ export class Adventure {
       message: finalSceneSuccess ? 
         'Adventure completed successfully!' : 
         'Adventure ended in failure.'
+    };
+  }
+
+  /**
+   * Begin epilogue phase after adventure completion
+   * @param {string} questHostId - ID of player designated as Quest Host
+   * @returns {Object} - Epilogue initialization result
+   */
+  beginEpilogue(questHostId) {
+    if (this.phase !== ADVENTURE_PHASES.COMPLETED) {
+      return {
+        success: false,
+        error: 'Adventure must be completed to begin epilogue'
+      };
+    }
+    
+    this.epiloguePhase = true;
+    this.questHost = questHostId;
+    this.sceneState = SCENE_STATES.EPILOGUE;
+    
+    // Initialize epilogue tracking
+    this.participants.forEach(userId => {
+      this.epilogueResponses[userId] = null;
+    });
+    
+    return {
+      success: true,
+      questHost: questHostId
+    };
+  }
+  
+  /**
+   * Add an epilogue response from a player
+   * @param {string} userId - Player ID
+   * @param {string} type - Type of response (growth, thread, hook)
+   * @param {string} content - Response content
+   * @returns {Object} - Result
+   */
+  addEpilogueResponse(userId, type, content) {
+    if (!this.epiloguePhase) {
+      return {
+        success: false,
+        error: 'Adventure is not in epilogue phase'
+      };
+    }
+    
+    if (!this.isParticipant(userId)) {
+      return {
+        success: false,
+        error: 'You are not a participant in this adventure! Only the original participants can provide epilogue responses.'
+      };
+    }
+    
+    if (this.epilogueResponses[userId]) {
+      return {
+        success: false,
+        error: 'You have already submitted your epilogue response'
+      };
+    }
+    
+    if (!Object.values(EPILOGUE_TYPES).includes(type)) {
+      return {
+        success: false,
+        error: 'Invalid epilogue response type'
+      };
+    }
+    
+    this.epilogueResponses[userId] = {
+      type,
+      content: content.trim(),
+      timestamp: new Date()
+    };
+    
+    // Check if all players have responded
+    const completedResponses = Object.values(this.epilogueResponses)
+      .filter(response => response !== null).length;
+    const allComplete = completedResponses === this.participants.length;
+    
+    return {
+      success: true,
+      response: this.epilogueResponses[userId],
+      allComplete,
+      remainingCount: this.participants.length - completedResponses
+    };
+  }
+  
+  /**
+   * Get epilogue status
+   * @returns {Object} - Epilogue progress
+   */
+  getEpilogueStatus() {
+    if (!this.epiloguePhase) {
+      return { active: false };
+    }
+    
+    const responses = Object.entries(this.epilogueResponses)
+      .map(([userId, response]) => ({ userId, response }));
+    
+    const completed = responses.filter(r => r.response !== null);
+    const pending = responses.filter(r => r.response === null);
+    
+    return {
+      active: true,
+      questHost: this.questHost,
+      completed: completed.length,
+      total: this.participants.length,
+      allComplete: completed.length === this.participants.length,
+      responses: completed,
+      pendingPlayers: pending.map(p => p.userId)
     };
   }
 
@@ -695,6 +979,12 @@ export class Adventure {
       created: this.created,
       locked: this.locked,
       questDefined: this.questDefined,
+      questHost: this.questHost,
+      openingScene: this.openingScene,
+      sceneTruths: this.sceneTruths,
+      currentSceneTruths: this.currentSceneTruths,
+      epilogueResponses: this.epilogueResponses,
+      epiloguePhase: this.epiloguePhase,
       players: playersData,
       adventureTraitUsage: this.adventureTraitUsage,
       narrative: this.narrative
@@ -725,13 +1015,21 @@ export class Adventure {
       created: new Date(data.created),
       locked: data.locked,
       questDefined: data.questDefined,
+      questHost: data.questHost || null,
+      openingScene: data.openingScene || null,
+      sceneTruths: data.sceneTruths || {},
+      currentSceneTruths: data.currentSceneTruths || {},
+      epilogueResponses: data.epilogueResponses || {},
+      epiloguePhase: data.epiloguePhase || false,
       adventureTraitUsage: data.adventureTraitUsage || {},
       narrative: data.narrative || {
         lastPlayer: null,
         pendingResolution: null,
         turnHistory: [],
         waitingForFirstTurn: true,
-        pendingTransition: null
+        pendingTransition: null,
+        turnLock: null,
+        transitionLock: null
       }
     });
 

@@ -24,6 +24,15 @@ class GameStorage {
     return this.jobBoard.find(job => job.id === jobId);
   }
 
+  updateJob(job) {
+    const index = this.jobBoard.findIndex(j => j.id === job.id);
+    if (index !== -1) {
+      this.jobBoard[index] = job;
+      return job;
+    }
+    return null;
+  }
+
   removeJob(jobId) {
     const index = this.jobBoard.findIndex(job => job.id === jobId);
     if (index !== -1) {
@@ -67,6 +76,12 @@ class GameStorage {
   findAdventureByThread(threadId) {
     return Object.values(this.activeGames).find(adventure => 
       adventure.threadId === threadId
+    );
+  }
+
+  findAdventureByJobId(jobId) {
+    return Object.values(this.activeGames).find(adventure => 
+      adventure.jobId === jobId
     );
   }
 

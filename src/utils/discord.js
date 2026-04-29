@@ -132,17 +132,34 @@ export async function addUserToThread(threadId, userId) {
  * @returns {Promise<Object>} - Thread data
  */
 export async function createThread(channelId, name, autoArchiveDuration = 1440) {
-  
-  const response = await DiscordRequest(`channels/${channelId}/threads`, {
-    method: 'POST',
-    body: {
-      name,
-      type: DISCORD_CONSTANTS.THREAD_TYPE.PUBLIC_THREAD,
-      auto_archive_duration: autoArchiveDuration
-    }
-  });
+  try {
+    const response = await DiscordRequest(`channels/${channelId}/threads`, {
+      method: 'POST',
+      body: {
+        name,
+        type: DISCORD_CONSTANTS.THREAD_TYPE.PUBLIC_THREAD,
+        auto_archive_duration: autoArchiveDuration
+      }
+    });
 
-  return response.json();
+    if (!response.ok) {
+      console.error('Discord thread creation failed:', response.status, response.statusText);
+      throw new Error(`Discord API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Thread creation successful:', data);
+    
+    if (!data || !data.id) {
+      console.error('Invalid thread data returned:', data);
+      throw new Error('No thread ID returned from Discord API');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in createThread:', error);
+    throw error;
+  }
 }
 
 /**
@@ -164,4 +181,28 @@ export async function updateMessage(applicationId, token, messageId, update = nu
       body: update
     });
   }
+}
+
+/**
+ * Get the parent channel of a thread
+ * @param {string} threadId - Thread ID
+ * @returns {Promise<string>} - Parent channel ID
+ */
+export async function getThreadParentChannel(threadId) {
+  const response = await DiscordRequest(`channels/${threadId}`);
+  const data = await response.json();
+  return data.parent_id;
+}
+
+/**
+ * Post a message to a Discord channel
+ * @param {string} channelId - Channel ID
+ * @param {string} content - Message content
+ * @returns {Promise<void>}
+ */
+export async function postToChannel(channelId, content) {
+  await DiscordRequest(`channels/${channelId}/messages`, {
+    method: 'POST',
+    body: { content }
+  });
 }

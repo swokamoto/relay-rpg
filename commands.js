@@ -7,7 +7,7 @@ const POST_COMMAND = {
     {
       type: 3,
       name: 'description',
-      description: 'Describe the job or quest',
+      description: 'Describe the job or scenario',
       required: true,
     },
   ],
@@ -25,6 +25,22 @@ const JOBS_COMMAND = {
 };
 
 // Character Creation Commands
+const NAME_COMMAND = {
+  name: 'name',
+  description: 'Give your character a name',
+  options: [
+    {
+      type: 3,
+      name: 'character_name',
+      description: 'What is your character\'s name?',
+      required: true,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
 const CONVICTION_COMMAND = {
   name: 'conviction',
   description: 'Define what your character fights for (their driving motivation)',
@@ -103,39 +119,9 @@ const USE_COMMAND = {
   contexts: [0, 2],
 };
 
-const ROLL_COMMAND = {
-  name: 'roll',
-  description: 'Roll 2d6 for an action (optional: specify trait for +2 bonus)',
-  options: [
-    {
-      type: 3,
-      name: 'trait',
-      description: 'Use a trait for +2 bonus (conviction, talent, or quirk)',
-      required: false,
-      choices: [
-        {
-          name: 'Conviction - What you fight for',
-          value: 'conviction'
-        },
-        {
-          name: 'Talent - What you excel at',
-          value: 'talent'
-        },
-        {
-          name: 'Quirk - Your personality trait',
-          value: 'quirk'
-        }
-      ]
-    }
-  ],
-  type: 1,
-  integration_types: [0, 1],
-  contexts: [0, 2],
-};
-
 const STATUS_COMMAND = {
   name: 'status',
-  description: 'Check adventure setup and character creation progress',
+  description: 'Check story setup and character creation progress',
   type: 1,
   integration_types: [0, 1],
   contexts: [0, 2],
@@ -143,7 +129,15 @@ const STATUS_COMMAND = {
 
 const BEGIN_COMMAND = {
   name: 'begin',
-  description: 'Lock the quest and begin character creation',
+  description: 'Lock the story and begin with opening scene description',
+  options: [
+    {
+      type: 3,
+      name: 'scene',
+      description: 'Describe the opening scene of this story',
+      required: true
+    }
+  ],
   type: 1,
   integration_types: [0, 1],
   contexts: [0, 2],
@@ -193,6 +187,22 @@ const TURN_COMMAND = {
   contexts: [0, 2],
 };
 
+const TRUTH_COMMAND = {
+  name: 'truth',
+  description: 'Declare a truth about the current scene (1 per scene per player)',
+  options: [
+    {
+      type: 3,
+      name: 'description',
+      description: 'A detail about the environment, situation, or scene',
+      required: true
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
 const TRANSITION_COMMAND = {
   name: 'transition',
   description: 'Provide scene transition with "but" and "therefore" elements',
@@ -209,6 +219,74 @@ const TRANSITION_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, ROLL_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRANSITION_COMMAND];
+const EPILOGUE_COMMAND = {
+  name: 'epilogue',
+  description: 'Share your character\'s final reflection after the story',
+  options: [
+    {
+      type: 3,
+      name: 'type',
+      description: 'What type of epilogue are you sharing?',
+      required: true,
+      choices: [
+        {
+          name: '📖 Character Growth - How did your character change?',
+          value: 'character_growth'
+        },
+        {
+          name: '🧵 Unresolved Thread - What mystery remains?', 
+          value: 'unresolved_thread'
+        },
+        {
+          name: '🔮 Future Hook - What new story idea emerged?',
+          value: 'future_hook'
+        }
+      ]
+    },
+    {
+      type: 3,
+      name: 'content',
+      description: 'Your epilogue response (will be shared with the community)',
+      required: true
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const FINALE_COMMAND = {
+  name: 'finale',
+  description: '(Host only) Describe the final outcome of the completed story',
+  options: [
+    {
+      type: 3,
+      name: 'outcome',
+      description: 'Describe how the story concludes and what happens to the world',
+      required: true
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1], 
+  contexts: [0, 2],
+};
+
+const LEAVE_COMMAND = {
+  name: 'leave',
+  description: 'Leave your current job or adventure',
+  options: [
+    {
+      type: 5,
+      name: 'confirm',
+      description: 'Confirm leaving an active adventure (required for started games)',
+      required: false,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

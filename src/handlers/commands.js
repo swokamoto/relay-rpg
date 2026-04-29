@@ -2,11 +2,15 @@ import { handlePostCommand, handleJobsCommand } from './jobCommands.js';
 import { 
   handleBeginCommand, 
   handleStatusCommand,
-  handleRollCommand,
   handleTurnCommand,
-  handleTransitionCommand
+  handleTransitionCommand,
+  handleFinaleCommand,
+  handleEpilogueCommand,
+  handleLeaveCommand
 } from './adventureCommands.js';
+import { handleTruthCommand } from './truthCommand.js';
 import { 
+  handleNameCommand,
   handleConvictionCommand,
   handleTalentCommand,
   handleQuirkCommand,
@@ -33,6 +37,9 @@ export async function handleCommands(req, res, gameState) {
       case 'begin':
         return await handleBeginCommand(req, res, gameState);
       
+      case 'name':
+        return await handleNameCommand(req, res, gameState);
+      
       case 'conviction':
         return await handleConvictionCommand(req, res, gameState);
       
@@ -45,20 +52,29 @@ export async function handleCommands(req, res, gameState) {
       case 'use':
         return await handleUseTraitCommand(req, res, gameState);
       
-      case 'roll':
-        return await handleRollCommand(req, res, gameState);
-      
       case 'turn':
         return await handleTurnCommand(req, res, gameState);
       
+      case 'truth':
+        return await handleTruthCommand(req, res, gameState);
+      
       case 'transition':
         return await handleTransitionCommand(req, res, gameState);
+      
+      case 'finale':
+        return await handleFinaleCommand(req, res, gameState);
+      
+      case 'epilogue':
+        return await handleEpilogueCommand(req, res, gameState);
       
       case 'status':
         return await handleStatusCommand(req, res, gameState);
       
       case 'character':
         return await handleCharacterCommand(req, res, gameState);
+      
+      case 'leave':
+        return await handleLeaveCommand(req, res, gameState);
       
       default:
         console.error(`Unknown command: ${name}`);

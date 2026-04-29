@@ -1,109 +1,210 @@
 # Relay RPG
 
-A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join adventures through a job board system, and build stories together through turn-based narrative scenes.
+A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join stories through a job board system, and build narratives together through turn-based scenes.
 
 ## Core Concept
-Like a relay race, each player takes their turn to advance the story, using their character traits when needed, then passes the "narrative baton" to the next player. Everyone works together toward completing the adventure.
+Like a relay race, each player takes their turn to advance the story, using their character traits when needed, then passes the "narrative baton" to the next player. Everyone works together toward completing the story.
 
-## Project structure
-Below is a basic overview of the project structure:
+## Features
 
-```
-├── examples    -> short, feature-specific sample apps
-│   ├── app.js  -> finished app.js code
-│   ├── button.js
-│   ├── command.js
-│   ├── modal.js
-│   ├── selectMenu.js
-├── .env.sample -> sample .env file
-├── app.js      -> main entrypoint for app
-├── commands.js -> slash command payloads + helpers
-├── game.js     -> logic specific to RPS
-├── utils.js    -> utility functions and enums
-├── package.json
-├── README.md
-└── .gitignore
-```
+### 🎭 Character Creation
+- **Permanent Characters**: Create one character that persists across all stories
+- **Four Required Elements**: Name + Conviction + Talent + Quirk
+- **Trait System**: Each trait provides +2 bonus when used, once per story
 
-## Running app locally
+### 📋 Job Board System
+- **Story Posting**: Anyone can post story scenarios for others to join
+- **Instant Join Buttons**: Click to join available stories  
+- **Thread-Based Adventures**: Each story gets its own discussion thread
+- **Flexible Participation**: Leave before start or during play (with confirmation)
+- **One Story Limit**: Players can only join one adventure at a time
 
-Before you start, you'll need to install [NodeJS](https://nodejs.org/en/download/) and [create a Discord app](https://discord.com/developers/applications) with the proper permissions:
-- `applications.commands`
-- `bot` (with Send Messages enabled)
+### 🎲 Narrative Gameplay
+- **2d6 Dice System**: Simple success/failure mechanics with partial success
+- **Turn-Based Storytelling**: Players take turns building the narrative
+- **Scene Truths**: Declare facts about each scene that become canon
+- **4-Act Structure**: Stories progress through Act I → II → III → Finale
 
+### 🏆 Story Completion
+- **Chronicle System**: Finale and epilogues collected and posted together
+- **Community Sharing**: Completed stories shared with the whole server
+- **Epilogue Contributions**: Character growth, unresolved threads, and future hooks
 
-Configuring the app is covered in detail in the [getting started guide](https://discord.com/developers/docs/getting-started).
-
-### Setup project
-
-First clone the project:
-```
-git clone https://github.com/discord/discord-example-app.git
-```
-
-Then navigate to its directory and install dependencies:
-```
-cd discord-example-app
-npm install
-```
-### Get app credentials
-
-Fetch the credentials from your app's settings and add them to a `.env` file (see `.env.sample` for an example). You'll need your app ID (`APP_ID`), bot token (`DISCORD_TOKEN`), and public key (`PUBLIC_KEY`).
-
-Fetching credentials is covered in detail in the [getting started guide](https://discord.com/developers/docs/getting-started).
-
-> 🔑 Environment variables can be added to the `.env` file in Glitch or when developing locally, and in the Secrets tab in Replit (the lock icon on the left).
-
-### Install slash commands
-
-The commands for the example app are set up in `commands.js`. All of the commands in the `ALL_COMMANDS` array at the bottom of `commands.js` will be installed when you run the `register` command configured in `package.json`:
+## Project Structure
 
 ```
-npm run register
+relay-rpg/
+├── src/
+│   ├── config/
+│   │   ├── config.js       # Environment configuration
+│   │   └── constants.js    # Game constants and messages
+│   ├── handlers/
+│   │   ├── adventureCommands.js  # Story gameplay commands
+│   │   ├── characterCommands.js  # Character creation commands
+│   │   ├── jobCommands.js        # Job board commands
+│   │   ├── components.js         # Discord button/component handlers
+│   │   └── index.js             # Handler routing
+│   ├── models/
+│   │   ├── Adventure.js    # Story/game state management
+│   │   ├── Job.js         # Job posting model
+│   │   └── Player.js      # Character data model
+│   ├── storage/
+│   │   └── gameState.js   # In-memory data storage
+│   └── utils/
+│       ├── discord.js     # Discord API utilities
+│       ├── gameHelpers.js # Game logic helpers
+│       └── validation.js  # Input validation
+├── app.js              # Main Discord bot entry point
+├── commands.js         # Discord slash command definitions
+├── package.json        # Node.js dependencies
+└── README.md          # This file
 ```
 
-### Run the app
+## Setup and Installation
 
-After your credentials are added, go ahead and run the app:
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- Discord Application with bot token
+- Basic understanding of Discord slash commands
 
+### Discord Application Setup
+
+1. Create a Discord Application at [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a bot user and get your bot token
+3. Enable the following bot permissions:
+   - `applications.commands` (for slash commands)
+   - `Send Messages`
+   - `Create Public Threads` 
+   - `Send Messages in Threads`
+   - `Manage Threads`
+
+### Local Development
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd relay-rpg
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Environment setup:**
+   Create a `.env` file with:
+   ```
+   APP_ID=your_discord_app_id
+   DISCORD_TOKEN=your_bot_token
+   PUBLIC_KEY=your_app_public_key
+   ```
+
+4. **Register slash commands:**
+   ```bash
+   npm run register
+   ```
+
+5. **Set up ngrok for local testing:**
+   ```bash
+   # Install ngrok if you haven't
+   npm install -g ngrok
+   
+   # Start the bot
+   npm start
+   
+   # In another terminal, start ngrok
+   ngrok http 3000
+   ```
+
+6. **Configure Discord interactions endpoint:**
+   - Copy your ngrok HTTPS URL (e.g., `https://abc123.ngrok.io`)
+   - In your Discord Application settings, set:
+     - **Interactions Endpoint URL**: `https://abc123.ngrok.io/interactions`
+
+## Game Commands
+
+### Character Creation (Required Before Playing)
 ```
-node app.js
+/name "Character Name"     # Set your character's name
+/conviction "description"   # What drives your character
+/talent "description"       # What they excel at
+/quirk "description"        # Their unique trait
 ```
 
-> ⚙️ A package [like `nodemon`](https://github.com/remy/nodemon), which watches for local changes and restarts your app, may be helpful while locally developing.
-
-If you aren't following the [getting started guide](https://discord.com/developers/docs/getting-started), you can move the contents of `examples/app.js` (the finished `app.js` file) to the top-level `app.js`.
-
-### Set up interactivity
-
-The project needs a public endpoint where Discord can send requests. To develop and test locally, you can use something like [`ngrok`](https://ngrok.com/) to tunnel HTTP traffic.
-
-Install ngrok if you haven't already, then start listening on port `3000`:
-
+### Job Board
 ```
-ngrok http 3000
+/post "story description"   # Create a new story for others to join
+/jobs                       # View available stories
+/leave                      # Leave your current job or adventure
 ```
 
-You should see your connection open:
-
+### Story Gameplay  
 ```
-Tunnel Status                 online
-Version                       2.0/2.0
-Web Interface                 http://127.0.0.1:4040
-Forwarding                    https://1234-someurl.ngrok.io -> localhost:3000
-
-Connections                  ttl     opn     rt1     rt5     p50     p90
-                              0       0       0.00    0.00    0.00    0.00
+/begin "scene description"  # (Host) Start the story with opening scene
+/turn "narrative"           # Take a turn in the story
+/truth "scene fact"         # Declare a truth about the current scene
+/transition "statement"     # Bridge scenes (Acts I-III only)
+/status                     # Check story progress
 ```
 
-Copy the forwarding address that starts with `https`, in this case `https://1234-someurl.ngrok.io`, then go to your [app's settings](https://discord.com/developers/applications).
+### Story Completion
+```
+/finale "outcome"           # (Host) Describe the final outcome
+/epilogue                   # Share character growth, threads, or hooks
+```
 
-On the **General Information** tab, there will be an **Interactions Endpoint URL**. Paste your ngrok address there, and append `/interactions` to it (`https://1234-someurl.ngrok.io/interactions` in the example).
+## How to Play
 
-Click **Save Changes**, and your app should be ready to run 🚀
+1. **Create Your Character** - Use `/name`, `/conviction`, `/talent`, and `/quirk`
+2. **Find a Story** - Use `/jobs` or create one with `/post`  
+3. **Join the Story** - Click the join button on story posts
+4. **Play Through Acts** - Take turns with `/turn`, declare truths with `/truth`
+5. **Leave if Needed** - Use `/leave` (before start) or `/leave confirm:true` (during story)
+6. **Complete the Story** - Host posts finale, everyone shares epilogues
 
-## Other resources
-- Read **[the documentation](https://discord.com/developers/docs/intro)** for in-depth information about API features.
-- Browse the `examples/` folder in this project for smaller, feature-specific code examples
-- Join the **[Discord Developers server](https://discord.gg/discord-developers)** to ask questions about the API, attend events hosted by the Discord API team, and interact with other devs.
-- Check out **[community resources](https://discord.com/developers/docs/topics/community-resources#community-resources)** for language-specific tools maintained by community members.
+See `RULES_ENHANCED.md` for detailed gameplay rules and examples.
+
+## Quick Start Guide
+
+### For Players
+
+1. **Create Your Character** (one-time setup):
+   ```
+   /name "Zara Nightwhisper"
+   /conviction "Protect those who cannot protect themselves"
+   /talent "Master of stealth and infiltration"
+   /quirk "Always leaves a calling card"
+   ```
+
+2. **Join a Story**:
+   - Use `/jobs` to see available stories
+   - Click the "Join Adventure" button on any story that interests you
+   - Wait for the Host to start with `/begin`
+   - Use `/leave` to exit before the story starts if needed
+
+3. **Play Through the Story**:
+   - Use `/truth "The guards look tired and distracted"` to add details to scenes
+   - Use `/turn "I slip past the distracted guards using my stealth training"` to take actions
+   - Use traits when needed for +2 bonus: `/turn "Drawing on my Conviction..."` 
+   - Use `/leave confirm:true` if you must exit during an active story
+
+4. **Complete the Story**:
+   - Host describes the finale
+   - Everyone shares epilogue responses
+   - Story Chronicle gets posted to the community
+
+### For Hosts
+
+1. **Create a Story**: `/post "A mysterious artifact has been stolen from the royal vault"`
+2. **Wait for Players** to join (minimum 2, maximum 6)
+3. **Start the Story**: `/begin "Guards discover the theft at dawn..."`
+4. **Guide When Needed**: Use `/status` to track progress
+5. **Conclude**: Use `/finale "The artifact's true power is revealed..."` when the story completes
+
+## Contributing
+
+This is an open-source Discord bot for collaborative storytelling. Contributions welcome!
+
+- **Bug Reports**: Please file issues with detailed steps to reproduce
+- **Feature Requests**: Describe the storytelling need your feature would address  
+- **Code Contributions**: Follow existing patterns and include tests for new features

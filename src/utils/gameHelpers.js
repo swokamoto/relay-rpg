@@ -17,41 +17,6 @@ export function formatMessage(template, variables = {}) {
 }
 
 /**
- * Get next player index in rotation
- * @param {number} currentIndex - Current player index
- * @param {number} totalPlayers - Total number of players
- * @returns {number} - Next player index
- */
-export function getNextPlayerIndex(currentIndex, totalPlayers) {
-  return (currentIndex + 1) % totalPlayers;
-}
-
-/**
- * Get previous player index in rotation
- * @param {number} currentIndex - Current player index
- * @param {number} totalPlayers - Total number of players
- * @returns {number} - Previous player index
- */
-export function getPrevPlayerIndex(currentIndex, totalPlayers) {
-  return (currentIndex - 1 + totalPlayers) % totalPlayers;
-}
-
-/**
- * Calculate gift recipient based on turn and gift type
- * @param {number} currentTurn - Current turn index
- * @param {string} giftType - Type of gift ('skill' or 'item')
- * @param {number} totalPlayers - Total number of players
- * @returns {number} - Recipient index
- */
-export function getGiftRecipientIndex(currentTurn, giftType, totalPlayers) {
-  if (giftType === 'skill') {
-    return getNextPlayerIndex(currentTurn, totalPlayers);
-  } else {
-    return getPrevPlayerIndex(currentTurn, totalPlayers);
-  }
-}
-
-/**
  * Generate unique ID for adventures
  * @param {string} jobId - Job ID
  * @returns {string} - Adventure ID
@@ -66,32 +31,6 @@ export function generateAdventureId(jobId) {
  */
 export function generateJobId() {
   return `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Check if all participants have completed a phase
- * @param {Object} phaseData - Phase completion data
- * @param {Array} participants - Array of participant IDs
- * @param {Function} checkFunction - Function to check completion for a participant
- * @returns {boolean} - Whether all participants have completed
- */
-export function allParticipantsCompleted(phaseData, participants, checkFunction) {
-  return participants.every(participantId => 
-    checkFunction(phaseData[participantId])
-  );
-}
-
-/**
- * Count completed participants in a phase
- * @param {Object} phaseData - Phase completion data
- * @param {Array} participants - Array of participant IDs
- * @param {Function} checkFunction - Function to check completion for a participant
- * @returns {number} - Number of participants who have completed
- */
-export function countCompletedParticipants(phaseData, participants, checkFunction) {
-  return participants.filter(participantId => 
-    checkFunction(phaseData[participantId])
-  ).length;
 }
 
 /**
@@ -136,15 +75,4 @@ export function getPlayerStatusMessage(currentPlayers, minPlayers) {
  */
 export function deduplicate(array) {
   return [...new Set(array)];
-}
-
-/**
- * Safe array access with default value
- * @param {Array} array - Array to access
- * @param {number} index - Index to access
- * @param {*} defaultValue - Default value if index is out of bounds
- * @returns {*} - Array value or default
- */
-export function safeArrayAccess(array, index, defaultValue = null) {
-  return array && array[index] !== undefined ? array[index] : defaultValue;
 }

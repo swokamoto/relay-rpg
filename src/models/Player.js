@@ -4,6 +4,7 @@
 export class Player {
   constructor(userId) {
     this.userId = userId;
+    this.characterName = null; // Character name
     this.characterTraits = {
       conviction: {
         description: null,
@@ -24,6 +25,22 @@ export class Player {
       successfulActions: 0
     };
     this.created = new Date();
+  }
+
+  /**
+   * Set character name
+   * @param {string} name - Character name
+   */
+  setCharacterName(name) {
+    this.characterName = name.trim();
+  }
+
+  /**
+   * Get character name or fallback
+   * @returns {string} - Character name or 'Unnamed Character'
+   */
+  getCharacterName() {
+    return this.characterName || 'Unnamed Character';
   }
 
   /**
@@ -144,10 +161,16 @@ export class Player {
   }
 
   /**
-   * Check if all traits are defined
+   * Check if character creation is complete (name + all traits)
    * @returns {boolean} - Whether character creation is complete
    */
   isCharacterComplete() {
+    // Check if character has a name
+    if (!this.characterName || this.characterName.trim().length === 0) {
+      return false;
+    }
+    
+    // Check if all traits are defined
     return Object.values(this.characterTraits).every(trait => 
       trait.description && trait.description.trim().length > 0
     );

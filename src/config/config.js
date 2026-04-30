@@ -12,7 +12,7 @@ export const config = {
 
   // Server Configuration
   server: {
-    port: process.env.PORT || 3000,
+    port: process.env.PORT || 8080,
     environment: process.env.NODE_ENV || 'development'
   },
 

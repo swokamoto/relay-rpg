@@ -35,7 +35,7 @@ app.post('/interactions', verifyKeyMiddleware(config.discord.publicKey), async f
   return await handleInteractions(req, res, gameStorage);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('🎲 DwindleRPG Bot listening on port', PORT);
   
   // Run periodic cleanup

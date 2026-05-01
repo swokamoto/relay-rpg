@@ -32,6 +32,7 @@ export async function handleNameCommand(req, res, gameStorage) {
   
   // Set the character name
   player.setCharacterName(characterName);
+  gameStorage.savePlayer(player);
   
   let content = `${EMOJIS.CHARACTER} **Character Name ${isUpdate ? 'Updated' : 'Set'}!**\n\n`;
   content += `**Name:** "${player.getCharacterName()}"\n\n`;
@@ -98,6 +99,7 @@ async function handleTraitCommand(req, res, gameStorage, traitType) {
     
     // Set the trait
     player.setTrait(traitType, validation.description);
+    gameStorage.savePlayer(player);
     
     // Get trait icon and name for response
     const traitIcon = EMOJIS[traitType.toUpperCase()];

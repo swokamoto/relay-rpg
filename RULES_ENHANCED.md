@@ -3,6 +3,21 @@ Welcome to a collaborative, narrative-driven RPG played entirely through Discord
 
 ---
 
+## 🚀 Getting Started: Example Settings
+
+Not sure where to begin? Here are a few worlds you might step into:
+
+
+Maybe you’re huddled around a sputtering campfire, deep in a wilderness that seems to shift when you’re not looking. The rain won’t let up, and something out there is watching. What do you do to keep hope alive—and what secret about this place does each of you sense?
+
+Or picture your crew’s battered ship limping into a harbor where the locals trade rumors for coconuts and every alley promises a new adventure. Who’s the first to chase a wild lead, and what trouble do you drag the rest of the crew into?
+
+Or maybe you’re all packed into a van, headlights cutting through the mist as you roll into a town with more legends than streetlights. What’s the weirdest clue you’ve brought, and who’s the first to spot something that shouldn’t be there?
+
+Let these scenes spark your own. Twist them, blend them, or invent something new together. The best stories start with a single spark and grow with every player’s voice.
+
+---
+
 ## 🧭 Game Structure
 Each story is divided into:
 
@@ -155,6 +170,19 @@ Each player may declare **1 Truth** about the scene
 - Keep actions **concise and forward-moving**
 - **Embrace complications** — they make the story better
 - **Share the spotlight**
+
+---
+
+## ☠️ Player Death & Rerolling
+
+
+Character death is never a mechanical consequence and cannot be caused by another player. If you wish for your character to die, you may choose this as part of your epilogue at the end of the story.
+
+If you choose character death in your epilogue:
+- Treat it as a major story moment—describe how it happens and its impact on the story.
+- Your character's fate will be included in the final Story Chronicle.
+
+Otherwise, all characters survive the story, regardless of outcome.
 
 ---
 

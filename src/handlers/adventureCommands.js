@@ -70,6 +70,9 @@ export async function handleTransitionCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
 
+  // Persist adventure state after transition
+  gameStorage.updateAdventure(adventure);
+
   // Build response message
   let content = `🔄 **Scene Transition** by <@${userId}>\n\n`;
   content += `**Scene Result:** ${result.transition.sceneResult.toUpperCase()}\n`;
@@ -209,6 +212,9 @@ export async function handleTurnCommand(req, res, gameStorage) {
     }
   }
 
+  // Persist adventure state after turn
+  gameStorage.updateAdventure(adventure);
+
   return res.send(createSuccessResponse(content));
 }
 
@@ -314,7 +320,7 @@ export async function handleBeginCommand(req, res, gameStorage) {
     // This ensures players who joined after adventure creation are included
     // But only if the adventure hasn't started yet (not locked)
     adventure.participants = adventureParticipants;
-    // No additional storage update needed - adventure object is modified in-place
+    gameStorage.updateAdventure(adventure);
   }
   
   // Check if adventure can be started
@@ -351,6 +357,9 @@ export async function handleBeginCommand(req, res, gameStorage) {
   if (!result.success) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
+
+  // Persist adventure state after begin
+  gameStorage.updateAdventure(adventure);
   
   // Remove job from job board since adventure has started
   try {
@@ -544,6 +553,9 @@ export async function handleFinaleCommand(req, res, gameStorage) {
     author: userId,
     timestamp: new Date()
   };
+
+  // Persist finale content
+  gameStorage.updateAdventure(adventure);
   
   // Send response to thread
   let content = `✅ **Finale Recorded!**\n\n`;
@@ -604,6 +616,9 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
   if (!result.success) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
+
+  // Persist epilogue response
+  gameStorage.updateAdventure(adventure);
   
   // Format response type display
   let typeDisplay;
@@ -778,8 +793,8 @@ export async function handleLeaveCommand(req, res, gameStorage) {
           console.error('Failed to notify players of adventure end:', error);
         }
       } else {
-        // Adventure continues with remaining players - no additional storage update needed
-        // (adventure object is modified in-place)
+        // Adventure continues with remaining players - persist the change
+        gameStorage.updateAdventure(adventure);
       }
     }
   }

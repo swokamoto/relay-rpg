@@ -138,6 +138,9 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
     
     // Don't auto-create adventures - let /begin handle it
     const allParticipants = job.getAllParticipants();
+
+    // Persist updated job
+    gameStorage.updateJob(job);
     
     // Simple success response for the user (ephemeral)
     let content = `${EMOJIS.ADVENTURE} **Joined Adventure!**\n\n` +

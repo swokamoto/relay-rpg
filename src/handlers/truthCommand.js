@@ -53,6 +53,9 @@ export async function handleTruthCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
 
+  // Persist truth declaration
+  gameStorage.updateAdventure(adventure);
+
   // Get the player to show character name
   const player = gameStorage.getPlayer(userId);
   const characterName = player ? player.getCharacterName() : 'Unknown Character';

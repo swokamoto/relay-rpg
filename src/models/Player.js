@@ -227,6 +227,7 @@ export class Player {
     return {
       userId: this.userId,
       adventureId: this.adventureId,
+      characterName: this.characterName,
       characterTraits: this.characterTraits,
       stats: this.stats,
       created: this.created
@@ -240,6 +241,7 @@ export class Player {
    */
   static fromJSON(data) {
     const player = new Player(data.userId, data.adventureId);
+    player.characterName = data.characterName || null;
     player.characterTraits = data.characterTraits || player.characterTraits;
     player.stats = { ...player.stats, ...data.stats };
     player.created = new Date(data.created);

@@ -1,265 +1,237 @@
 import { Adventure } from '../models/Adventure.js';
 import { Job } from '../models/Job.js';
 import { Player } from '../models/Player.js';
+import db from './db.js';
 
-/**
- * In-memory storage for game state
- * In a production environment, this would be replaced with a proper database
- */
+// Prepared statements
+const stmts = {
+  // Players
+  upsertPlayer: db.prepare('INSERT OR REPLACE INTO players (user_id, data) VALUES (?, ?)'),
+  getPlayer: db.prepare('SELECT data FROM players WHERE user_id = ?'),
+  getAllPlayers: db.prepare('SELECT data FROM players'),
+  countPlayers: db.prepare('SELECT COUNT(*) as count FROM players'),
+
+  // Jobs
+  insertJob: db.prepare('INSERT INTO jobs (id, status, data) VALUES (?, ?, ?)'),
+  updateJob: db.prepare('UPDATE jobs SET status = ?, data = ? WHERE id = ?'),
+  getJob: db.prepare('SELECT data FROM jobs WHERE id = ?'),
+  getAllJobs: db.prepare('SELECT data FROM jobs'),
+  getOpenJobs: db.prepare('SELECT data FROM jobs WHERE status = ?'),
+  deleteJob: db.prepare('DELETE FROM jobs WHERE id = ?'),
+  cleanupJobs: db.prepare("DELETE FROM jobs WHERE status = 'completed' OR (json_extract(data, '$.created') < ?)"),
+
+  // Adventures
+  insertAdventure: db.prepare('INSERT INTO adventures (id, thread_id, job_id, data) VALUES (?, ?, ?, ?)'),
+  updateAdventure: db.prepare('UPDATE adventures SET data = ? WHERE id = ?'),
+  getAdventure: db.prepare('SELECT data FROM adventures WHERE id = ?'),
+  getAdventureByThread: db.prepare('SELECT data FROM adventures WHERE thread_id = ?'),
+  getAdventureByJob: db.prepare('SELECT data FROM adventures WHERE job_id = ?'),
+  getAllAdventures: db.prepare('SELECT data FROM adventures'),
+  deleteAdventure: db.prepare('DELETE FROM adventures WHERE id = ?'),
+
+  // Threads
+  insertThread: db.prepare('INSERT OR REPLACE INTO threads (job_id, thread_id, data) VALUES (?, ?, ?)'),
+  getThread: db.prepare('SELECT data FROM threads WHERE job_id = ?'),
+  getThreadByThreadId: db.prepare('SELECT data FROM threads WHERE thread_id = ?'),
+  getAllThreads: db.prepare('SELECT data FROM threads'),
+  deleteThread: db.prepare('DELETE FROM threads WHERE job_id = ?'),
+  cleanupThreads: db.prepare("DELETE FROM threads WHERE json_extract(data, '$.created') < ?"),
+};
+
 class GameStorage {
-  constructor() {
-    this.jobBoard = [];
-    this.activeGames = {};
-    this.activeThreads = {};
-    this.globalCharacters = {}; // userId -> Player object
-  }
+  // ─── Job Board ───────────────────────────────────────────────────────────────
 
-  // Job Board Methods
   addJob(job) {
-    this.jobBoard.push(job);
+    stmts.insertJob.run(job.id, job.status, JSON.stringify(job.toJSON()));
     return job;
   }
 
   findJob(jobId) {
-    return this.jobBoard.find(job => job.id === jobId);
+    const row = stmts.getJob.get(jobId);
+    return row ? Job.fromJSON(JSON.parse(row.data)) : null;
   }
 
   updateJob(job) {
-    const index = this.jobBoard.findIndex(j => j.id === job.id);
-    if (index !== -1) {
-      this.jobBoard[index] = job;
-      return job;
-    }
-    return null;
+    const changes = stmts.updateJob.run(job.status, JSON.stringify(job.toJSON()), job.id);
+    return changes.changes > 0 ? job : null;
   }
 
   removeJob(jobId) {
-    const index = this.jobBoard.findIndex(job => job.id === jobId);
-    if (index !== -1) {
-      return this.jobBoard.splice(index, 1)[0];
-    }
-    return null;
+    const job = this.findJob(jobId);
+    if (job) stmts.deleteJob.run(jobId);
+    return job;
   }
 
   getJobBoard() {
-    return [...this.jobBoard];
+    return stmts.getAllJobs.all().map(row => Job.fromJSON(JSON.parse(row.data)));
   }
 
   getOpenJobs() {
-    return this.jobBoard.filter(job => job.canAcceptParticipants());
+    return stmts.getOpenJobs.all('open')
+      .map(row => Job.fromJSON(JSON.parse(row.data)))
+      .filter(job => job.canAcceptParticipants());
   }
 
-  // Check if user is participating in any open job
   isUserInAnyJob(userId) {
-    return this.jobBoard.some(job => 
-      job.status === 'open' && job.isUserInvolved(userId)
-    );
+    return stmts.getOpenJobs.all('open')
+      .map(row => Job.fromJSON(JSON.parse(row.data)))
+      .some(job => job.isUserInvolved(userId));
   }
 
-  // Get the job a user is currently involved in (if any)
   getUserActiveJob(userId) {
-    return this.jobBoard.find(job => 
-      job.status === 'open' && job.isUserInvolved(userId)
-    );
+    return stmts.getOpenJobs.all('open')
+      .map(row => Job.fromJSON(JSON.parse(row.data)))
+      .find(job => job.isUserInvolved(userId)) || null;
   }
 
-  // Adventure Methods
+  // ─── Adventures ──────────────────────────────────────────────────────────────
+
   addAdventure(adventure) {
-    this.activeGames[adventure.id] = adventure;
+    stmts.insertAdventure.run(adventure.id, adventure.threadId, adventure.jobId, JSON.stringify(adventure.toJSON()));
     return adventure;
   }
 
   findAdventure(adventureId) {
-    return this.activeGames[adventureId];
+    const row = stmts.getAdventure.get(adventureId);
+    return row ? Adventure.fromJSON(JSON.parse(row.data)) : null;
   }
 
   findAdventureByThread(threadId) {
-    return Object.values(this.activeGames).find(adventure => 
-      adventure.threadId === threadId
-    );
+    const row = stmts.getAdventureByThread.get(threadId);
+    return row ? Adventure.fromJSON(JSON.parse(row.data)) : null;
   }
 
   findAdventureByJobId(jobId) {
-    return Object.values(this.activeGames).find(adventure => 
-      adventure.jobId === jobId
-    );
+    const row = stmts.getAdventureByJob.get(jobId);
+    return row ? Adventure.fromJSON(JSON.parse(row.data)) : null;
+  }
+
+  updateAdventure(adventure) {
+    stmts.updateAdventure.run(JSON.stringify(adventure.toJSON()), adventure.id);
+    return adventure;
   }
 
   removeAdventure(adventureId) {
-    const adventure = this.activeGames[adventureId];
-    if (adventure) {
-      delete this.activeGames[adventureId];
-      return adventure;
-    }
-    return null;
+    const adventure = this.findAdventure(adventureId);
+    if (adventure) stmts.deleteAdventure.run(adventureId);
+    return adventure;
   }
 
   getActiveAdventures() {
-    return { ...this.activeGames };
+    const result = {};
+    stmts.getAllAdventures.all().forEach(row => {
+      const adv = Adventure.fromJSON(JSON.parse(row.data));
+      result[adv.id] = adv;
+    });
+    return result;
   }
 
-  // Thread Methods
+  // ─── Threads ─────────────────────────────────────────────────────────────────
+
   addThread(jobId, threadInfo) {
-    this.activeThreads[jobId] = threadInfo;
+    stmts.insertThread.run(jobId, threadInfo.threadId, JSON.stringify(threadInfo));
     return threadInfo;
   }
 
   findThread(jobId) {
-    return this.activeThreads[jobId];
+    const row = stmts.getThread.get(jobId);
+    return row ? JSON.parse(row.data) : null;
   }
 
   findThreadByThreadId(threadId) {
-    return Object.values(this.activeThreads).find(thread => 
-      thread.threadId === threadId
-    );
+    const row = stmts.getThreadByThreadId.get(threadId);
+    return row ? JSON.parse(row.data) : null;
   }
 
   removeThread(jobId) {
-    const thread = this.activeThreads[jobId];
-    if (thread) {
-      delete this.activeThreads[jobId];
-      return thread;
-    }
-    return null;
+    const thread = this.findThread(jobId);
+    if (thread) stmts.deleteThread.run(jobId);
+    return thread;
   }
 
   getActiveThreads() {
-    return { ...this.activeThreads };
+    const result = {};
+    stmts.getAllThreads.all().forEach(row => {
+      const thread = JSON.parse(row.data);
+      result[thread.jobId] = thread;
+    });
+    return result;
   }
 
-  // Global Character Methods
+  // ─── Players ─────────────────────────────────────────────────────────────────
+
   getOrCreatePlayer(userId) {
-    if (!this.globalCharacters[userId]) {
-      this.globalCharacters[userId] = new Player(userId);
-    }
-    return this.globalCharacters[userId];
+    const row = stmts.getPlayer.get(userId);
+    if (row) return Player.fromJSON(JSON.parse(row.data));
+    const player = new Player(userId);
+    stmts.upsertPlayer.run(userId, JSON.stringify(player.toJSON()));
+    return player;
   }
 
   getPlayer(userId) {
-    return this.globalCharacters[userId] || null;
+    const row = stmts.getPlayer.get(userId);
+    return row ? Player.fromJSON(JSON.parse(row.data)) : null;
+  }
+
+  savePlayer(player) {
+    stmts.upsertPlayer.run(player.userId, JSON.stringify(player.toJSON()));
+    return player;
   }
 
   getAllPlayers() {
-    return { ...this.globalCharacters };
+    const result = {};
+    stmts.getAllPlayers.all().forEach(row => {
+      const player = Player.fromJSON(JSON.parse(row.data));
+      result[player.userId] = player;
+    });
+    return result;
   }
 
   hasCompleteCharacter(userId) {
     const player = this.getPlayer(userId);
-    return player && player.isCharacterComplete();
+    return player ? player.isCharacterComplete() : false;
   }
 
   getPlayerCount() {
-    return Object.keys(this.globalCharacters).length;
+    return stmts.countPlayers.get().count;
   }
 
   getCompleteCharacterCount() {
-    return Object.values(this.globalCharacters)
+    return stmts.getAllPlayers.all()
+      .map(row => Player.fromJSON(JSON.parse(row.data)))
       .filter(player => player.isCharacterComplete())
       .length;
   }
 
-  // Global Character Methods
-  getOrCreatePlayer(userId) {
-    if (!this.globalCharacters[userId]) {
-      this.globalCharacters[userId] = new Player(userId);
-    }
-    return this.globalCharacters[userId];
-  }
+  // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
-  getPlayer(userId) {
-    return this.globalCharacters[userId] || null;
-  }
-
-  getAllPlayers() {
-    return { ...this.globalCharacters };
-  }
-
-  hasCompleteCharacter(userId) {
-    const player = this.getPlayer(userId);
-    return player && player.isCharacterComplete();
-  }
-
-  getPlayerCount() {
-    return Object.keys(this.globalCharacters).length;
-  }
-
-  getCompleteCharacterCount() {
-    return Object.values(this.globalCharacters)
-      .filter(player => player.isCharacterComplete())
-      .length;
-  }
-
-  // Cleanup Methods
   cleanupCompletedJobs() {
-    const beforeCount = this.jobBoard.length;
-    this.jobBoard = this.jobBoard.filter(job => 
-      job.status !== 'completed' && 
-      (Date.now() - new Date(job.created).getTime()) < 24 * 60 * 60 * 1000 // 24 hours
-    );
-    const afterCount = this.jobBoard.length;
-    return beforeCount - afterCount;
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const result = stmts.cleanupJobs.run(cutoff);
+    return result.changes;
   }
 
   cleanupOldThreads() {
-    const beforeCount = Object.keys(this.activeThreads).length;
-    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours
-    
-    Object.keys(this.activeThreads).forEach(jobId => {
-      const thread = this.activeThreads[jobId];
-      if (new Date(thread.created).getTime() < cutoffTime) {
-        delete this.activeThreads[jobId];
-      }
-    });
-    
-    const afterCount = Object.keys(this.activeThreads).length;
-    return beforeCount - afterCount;
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const result = stmts.cleanupThreads.run(cutoff);
+    return result.changes;
   }
 
-  // Serialization Methods (for potential persistence)
-  serialize() {
-    return {
-      jobBoard: this.jobBoard.map(job => job.toJSON()),
-      activeGames: Object.fromEntries(
-        Object.entries(this.activeGames).map(([id, adventure]) => [id, adventure.toJSON()])
-      ),
-      activeThreads: { ...this.activeThreads }
-    };
-  }
+  // ─── Statistics ──────────────────────────────────────────────────────────────
 
-  deserialize(data) {
-    if (data.jobBoard) {
-      this.jobBoard = data.jobBoard.map(jobData => Job.fromJSON(jobData));
-    }
-    
-    if (data.activeGames) {
-      this.activeGames = Object.fromEntries(
-        Object.entries(data.activeGames).map(([id, adventureData]) => 
-          [id, Adventure.fromJSON(adventureData)]
-        )
-      );
-    }
-    
-    if (data.activeThreads) {
-      this.activeThreads = { ...data.activeThreads };
-    }
-  }
-
-  // Statistics Methods
   getStats() {
     return {
-      totalJobs: this.jobBoard.length,
+      totalJobs: this.getJobBoard().length,
       openJobs: this.getOpenJobs().length,
-      activeAdventures: Object.keys(this.activeGames).length,
-      activeThreads: Object.keys(this.activeThreads).length
+      activeAdventures: Object.keys(this.getActiveAdventures()).length,
+      activeThreads: Object.keys(this.getActiveThreads()).length
     };
   }
 
-  // Clear all data (for testing or reset)
+  // ─── Clear (testing/reset) ───────────────────────────────────────────────────
+
   clear() {
-    this.jobBoard = [];
-    this.activeGames = {};
-    this.activeThreads = {};
-    this.globalCharacters = {};
+    db.exec('DELETE FROM players; DELETE FROM jobs; DELETE FROM adventures; DELETE FROM threads;');
   }
 }
 

@@ -985,6 +985,8 @@ export class Adventure {
       currentSceneTruths: this.currentSceneTruths,
       epilogueResponses: this.epilogueResponses,
       epiloguePhase: this.epiloguePhase,
+      finaleContent: this.finaleContent,
+      lastActivityAt: this.lastActivityAt,
       players: playersData,
       adventureTraitUsage: this.adventureTraitUsage,
       narrative: this.narrative
@@ -1021,6 +1023,8 @@ export class Adventure {
       currentSceneTruths: data.currentSceneTruths || {},
       epilogueResponses: data.epilogueResponses || {},
       epiloguePhase: data.epiloguePhase || false,
+      finaleContent: data.finaleContent || null,
+      lastActivityAt: data.lastActivityAt ? new Date(data.lastActivityAt) : new Date(),
       adventureTraitUsage: data.adventureTraitUsage || {},
       narrative: data.narrative || {
         lastPlayer: null,

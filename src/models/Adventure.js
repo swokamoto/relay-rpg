@@ -43,6 +43,9 @@ export class Adventure {
     this.epilogueResponses = {};
     this.epiloguePhase = false;
     this.finaleContent = null; // Finale description from host
+
+    // Per-adventure player objects (for legacy compatibility)
+    this.players = {};
     
     // Track trait usage per adventure (not global)
     this.adventureTraitUsage = {};

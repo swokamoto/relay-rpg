@@ -22,6 +22,6 @@ primary_region = 'iad'
   cpus = 1
   memory_mb = 256
 
-[mounts]
-  source="data"
-  destination="/data"
+[[mounts]]
+  source = "data"
+  destination = "/data"

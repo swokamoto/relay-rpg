@@ -33,6 +33,7 @@ export class Adventure {
     this.locked = false;
     this.questDefined = false;
     this.questHost = null; // Player who will provide final outcome
+    this.startedBy = null; // Player who ran /begin
     this.openingScene = null; // Scene description from /begin
     
     // Truth tracking per scene
@@ -139,7 +140,7 @@ export class Adventure {
    * @param {string} sceneDescription - Opening scene description
    * @returns {Object} - Success result
    */
-  begin(gameStorage, sceneDescription) {
+  begin(gameStorage, sceneDescription, userId) {
     const canStartResult = this.canStart(gameStorage);
     if (!canStartResult.can) {
       return {
@@ -155,6 +156,7 @@ export class Adventure {
     this.scene = 1;
     this.sceneState = SCENE_STATES.ACTIVE;
     this.openingScene = sceneDescription;
+    this.startedBy = userId || null;
 
     return {
       success: true,
@@ -1009,6 +1011,7 @@ export class Adventure {
       epiloguePhase: this.epiloguePhase,
       finaleContent: this.finaleContent,
       lastActivityAt: this.lastActivityAt,
+      startedBy: this.startedBy || null,
       players: playersData,
       adventureTraitUsage: this.adventureTraitUsage,
       narrative: this.narrative
@@ -1047,6 +1050,7 @@ export class Adventure {
       epiloguePhase: data.epiloguePhase || false,
       finaleContent: data.finaleContent || null,
       lastActivityAt: data.lastActivityAt ? new Date(data.lastActivityAt) : new Date(),
+      startedBy: data.startedBy || null,
       adventureTraitUsage: data.adventureTraitUsage || {},
       narrative: data.narrative || {
         lastPlayer: null,

@@ -353,7 +353,7 @@ export async function handleBeginCommand(req, res, gameStorage) {
   }
   
   // Begin the adventure
-  const result = adventure.begin(gameStorage, sceneDescription);
+  const result = adventure.begin(gameStorage, sceneDescription, userId);
   
   if (!result.success) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
@@ -920,6 +920,87 @@ export async function handleInviteCommand(req, res, gameStorage) {
 
   return res.send(createSuccessResponse(
     `✅ **Invite Sent!**\n\n<@${targetUserId}> has been added to the adventure.`,
+    true
+  ));
+}
+
+/**
+ * Handle /kick command - Remove a player from the active adventure (host only)
+ */
+export async function handleKickCommand(req, res, gameStorage) {
+  const userId = getUserId(req);
+  const channelId = getChannelId(req);
+
+  // Must be used inside an adventure thread
+  const adventure = gameStorage.findAdventureByThread(channelId);
+  if (!adventure) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Not an Adventure Thread**\n\nThis command only works inside an active adventure thread.`,
+      true
+    ));
+  }
+
+  if (adventure.phase !== ADVENTURE_PHASES.PLAYING) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Adventure Not Active**\n\nPlayers can only be kicked during an active story.`,
+      true
+    ));
+  }
+
+  // Only the player who ran /begin can kick
+  if (adventure.startedBy !== userId) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Host Only**\n\nOnly the player who started this adventure can kick others.`,
+      true
+    ));
+  }
+
+  const targetUserId = req.body.data.options[0].value;
+
+  if (targetUserId === userId) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} You can't kick yourself. Use \`/leave\` to exit the adventure.`,
+      true
+    ));
+  }
+
+  if (!adventure.isParticipant(targetUserId)) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} <@${targetUserId}> is not in this adventure.`,
+      true
+    ));
+  }
+
+  // Remove from adventure participants
+  adventure.participants = adventure.participants.filter(id => id !== targetUserId);
+
+  // Check if adventure can still continue
+  if (adventure.participants.length < GAME_CONSTANTS.MIN_PLAYERS) {
+    gameStorage.removeAdventure(adventure.id);
+    gameStorage.removeThread(adventure.jobId);
+    try {
+      await postToChannel(channelId,
+        `🚫 **Adventure Ended**\n\n` +
+        `A player was removed, bringing the group below the minimum ${GAME_CONSTANTS.MIN_PLAYERS} players required.\n\n` +
+        `*The adventure has been automatically concluded.*`
+      );
+    } catch (error) {
+      console.error('Failed to notify players of adventure end:', error);
+    }
+    return res.send(createSuccessResponse(
+      `✅ <@${targetUserId}> was removed. Adventure ended due to insufficient players.`,
+      true
+    ));
+  }
+
+  gameStorage.updateAdventure(adventure);
+
+  await postToChannel(channelId,
+    `🚪 **Player Removed**\n\n<@${targetUserId}> has been removed from the adventure by the host.`
+  );
+
+  return res.send(createSuccessResponse(
+    `✅ <@${targetUserId}> has been removed from the adventure.`,
     true
   ));
 }

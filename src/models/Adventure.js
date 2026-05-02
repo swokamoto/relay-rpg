@@ -79,6 +79,25 @@ export class Adventure {
   }
 
   /**
+   * Add a new participant to an already-started adventure (via invite)
+   * @param {string} userId - User ID to add
+   * @returns {Object} - Result
+   */
+  addParticipant(userId) {
+    if (this.isParticipant(userId)) {
+      return { success: false, error: 'That player is already in this adventure.' };
+    }
+    if (this.phase !== ADVENTURE_PHASES.PLAYING) {
+      return { success: false, error: 'Players can only be invited during an active adventure.' };
+    }
+    this.participants.push(userId);
+    if (!this.adventureTraitUsage[userId]) {
+      this.adventureTraitUsage[userId] = {};
+    }
+    return { success: true };
+  }
+
+  /**
    * Check if adventure can be started (requires complete characters)
    * @param {GameStorage} gameStorage - Game storage to check character completion
    * @returns {Object} - Validation result

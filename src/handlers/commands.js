@@ -6,7 +6,8 @@ import {
   handleTransitionCommand,
   handleFinaleCommand,
   handleEpilogueCommand,
-  handleLeaveCommand
+  handleLeaveCommand,
+  handleInviteCommand
 } from './adventureCommands.js';
 import { handleTruthCommand } from './truthCommand.js';
 import { 
@@ -75,6 +76,9 @@ export async function handleCommands(req, res, gameState) {
       
       case 'leave':
         return await handleLeaveCommand(req, res, gameState);
+      
+      case 'invite':
+        return await handleInviteCommand(req, res, gameState);
       
       default:
         console.error(`Unknown command: ${name}`);

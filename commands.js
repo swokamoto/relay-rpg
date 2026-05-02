@@ -287,6 +287,22 @@ const LEAVE_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND];
+const INVITE_COMMAND = {
+  name: 'invite',
+  description: 'Invite a player to join your active adventure mid-story',
+  options: [
+    {
+      type: 6,
+      name: 'player',
+      description: 'The player to invite',
+      required: true,
+    }
+  ],
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 2],
+};
+
+const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND, INVITE_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

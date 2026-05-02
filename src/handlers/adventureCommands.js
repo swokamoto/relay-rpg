@@ -4,7 +4,8 @@ import {
   getUserId, 
   getChannelId,
   getThreadParentChannel,
-  postToChannel
+  postToChannel,
+  addUserToThread
 } from '../utils/discord.js';
 import { formatParticipantList } from '../utils/gameHelpers.js';
 import { Adventure } from '../models/Adventure.js';
@@ -834,4 +835,91 @@ export async function handleLeaveCommand(req, res, gameStorage) {
   responseMessage += `You can now join other adventures using \`/jobs\`!`;
 
   return res.send(createSuccessResponse(responseMessage, true));
+}
+
+/**
+ * Handle /invite command - Invite a player to join an active adventure
+ */
+export async function handleInviteCommand(req, res, gameStorage) {
+  const userId = getUserId(req);
+  const channelId = getChannelId(req);
+
+  // Must be used inside an adventure thread
+  const adventure = gameStorage.findAdventureByThread(channelId);
+  if (!adventure) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Not an Adventure Thread**\n\nThis command only works inside an active adventure thread.`,
+      true
+    ));
+  }
+
+  if (adventure.phase !== ADVENTURE_PHASES.PLAYING) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Adventure Not Active**\n\nPlayers can only be invited during an active story.`,
+      true
+    ));
+  }
+
+  // Caller must be a participant
+  if (!adventure.isParticipant(userId)) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Not a Participant**\n\nOnly players already in this adventure can invite others.`,
+      true
+    ));
+  }
+
+  // Get the target user from the USER option (type 6 resolves to resolved.users)
+  const targetUserId = req.body.data.options[0].value;
+  const resolvedUser = req.body.data.resolved?.users?.[targetUserId];
+
+  if (!resolvedUser) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} Could not resolve that user.`, true));
+  }
+
+  if (resolvedUser.bot) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} You cannot invite bots.`, true));
+  }
+
+  if (targetUserId === userId) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} You're already in this adventure.`, true));
+  }
+
+  // Target must have a complete character
+  const hasComplete = gameStorage.hasCompleteCharacter(targetUserId);
+  if (!hasComplete) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Character Incomplete**\n\n` +
+      `<@${targetUserId}> needs to set up their character first using \`/name\`, \`/conviction\`, \`/talent\`, and \`/quirk\`.`,
+      true
+    ));
+  }
+
+  // Add to adventure
+  const result = adventure.addParticipant(targetUserId);
+  if (!result.success) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
+  }
+
+  // Add target to the Discord thread
+  try {
+    await addUserToThread(channelId, targetUserId);
+  } catch (error) {
+    console.error('Failed to add invited user to thread:', error);
+  }
+
+  gameStorage.updateAdventure(adventure);
+
+  const invitedPlayer = gameStorage.getPlayer(targetUserId);
+  const characterName = invitedPlayer?.characterName ? `"${invitedPlayer.characterName}"` : `<@${targetUserId}>`;
+
+  await postToChannel(channelId,
+    `${EMOJIS.ADVENTURE} **New Arrival!**\n\n` +
+    `${characterName} (<@${targetUserId}>) has joined the story, invited by <@${userId}>.\n\n` +
+    `*They can now use \`/turn\`, \`/truth\`, and all adventure commands.*`
+  );
+
+  return res.send(createSuccessResponse(
+    `✅ **Invite Sent!**\n\n<@${targetUserId}> has been added to the adventure.`,
+    true
+  ));
 }

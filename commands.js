@@ -304,7 +304,7 @@ const INVITE_COMMAND = {
 };
 
 const KICK_COMMAND = {
-  name: 'kick',
+  name: 'remove',
   description: 'Remove a player from the active adventure (host only)',
   options: [
     {

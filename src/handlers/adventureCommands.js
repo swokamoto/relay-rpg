@@ -927,7 +927,7 @@ export async function handleInviteCommand(req, res, gameStorage) {
 /**
  * Handle /kick command - Remove a player from the active adventure (host only)
  */
-export async function handleKickCommand(req, res, gameStorage) {
+export async function handleRemoveCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
 

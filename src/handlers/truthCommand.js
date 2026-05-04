@@ -21,7 +21,7 @@ export async function handleTruthCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
-      `Use \`/jobs\` in the main channel to find adventures to join!`,
+      `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
   }

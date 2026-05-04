@@ -28,7 +28,7 @@ export async function handleTransitionCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
-      `Use \`/jobs\` in the main channel to find adventures to join!`,
+      `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
   }
@@ -102,7 +102,7 @@ export async function handleTransitionCommand(req, res, gameStorage) {
   } else {
     content += `${result.sceneAdvancement.actTransition ? result.sceneAdvancement.actTransition + '\n\n' : ''}`;
     content += `🎬 **${result.sceneAdvancement.message}**\n\n`;
-    content += `� *Use \`/truth\` to add scene details, \`/turn\` to take actions.*`;
+    content += `🗺️ *Use \`/truth\` to add scene details, \`/turn\` to take actions.*`;
   }
 
   return res.send(createSuccessResponse(content));
@@ -123,7 +123,7 @@ export async function handleTurnCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
-      `Use \`/jobs\` in the main channel to find adventures to join!`,
+      `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
   }
@@ -258,7 +258,7 @@ export async function handleBeginCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
-      `Use \`/jobs\` in the main channel to find adventures to join!`,
+      `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
   }
@@ -826,7 +826,7 @@ export async function handleLeaveCommand(req, res, gameStorage) {
     gameStorage.updateHook(activeHook);
   }
 
-  let responseMessage = `✅ **Left Adventure**\n\n`;
+  let responseMessage = `✅ **Left Story**\n\n`;
   responseMessage += `You've left: "${activeHook.description}"\n\n`;
   
   // Different messaging based on whether adventure was active
@@ -834,11 +834,11 @@ export async function handleLeaveCommand(req, res, gameStorage) {
     const remainingInAdventure = adventure.participants?.length || 0;
     
     if (remainingInAdventure < GAME_CONSTANTS.MIN_PLAYERS) {
-      responseMessage += `🚫 **Adventure Ended** - Insufficient players remaining\n\n`;
-      responseMessage += `*The adventure has been automatically concluded since fewer than ${GAME_CONSTANTS.MIN_PLAYERS} players remain.*\n\n`;
+      responseMessage += `🚫 **Story Ended** - Insufficient players remaining\n\n`;
+      responseMessage += `*The story has been automatically concluded since fewer than ${GAME_CONSTANTS.MIN_PLAYERS} players remain.*\n\n`;
     } else {
-      responseMessage += `⚠️ **Active Adventure** - ${remainingInAdventure} player(s) continue the story\n\n`;
-      responseMessage += `*The remaining players can continue their adventure.*\n\n`;
+      responseMessage += `⚠️ **Active Story** - ${remainingInAdventure} player(s) continue\n\n`;
+      responseMessage += `*The remaining players can continue the story.*\n\n`;
     }
   } else {
     // Check if job now has too few participants (pre-game)
@@ -850,7 +850,7 @@ export async function handleLeaveCommand(req, res, gameStorage) {
     }
   }
   
-  responseMessage += `You can now join other adventures using \`/jobs\`!`;
+  responseMessage += `You can now join other stories using \`/hooks\`!`;
 
   return res.send(createSuccessResponse(responseMessage, true));
 }

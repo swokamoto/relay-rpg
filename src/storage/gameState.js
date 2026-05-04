@@ -1,5 +1,5 @@
 import { Adventure } from '../models/Adventure.js';
-import { Job } from '../models/Job.js';
+import { Hook } from '../models/Hook.js';
 import { Player } from '../models/Player.js';
 import db from './db.js';
 
@@ -39,49 +39,47 @@ const stmts = {
 };
 
 class GameStorage {
-  // ─── Job Board ───────────────────────────────────────────────────────────────
+  // ─── Hook Board ──────────────────────────────────────────────────────────────
 
-  addJob(job) {
-    stmts.insertJob.run(job.id, job.status, JSON.stringify(job.toJSON()));
-    return job;
+  addHook(hook) {
+    stmts.insertJob.run(hook.id, hook.status, JSON.stringify(hook.toJSON()));
+    return hook;
   }
 
-  findJob(jobId) {
-    const row = stmts.getJob.get(jobId);
-    return row ? Job.fromJSON(JSON.parse(row.data)) : null;
+  findHook(hookId) {
+    const row = stmts.getJob.get(hookId);
+    return row ? Hook.fromJSON(JSON.parse(row.data)) : null;
   }
 
-  updateJob(job) {
-    const changes = stmts.updateJob.run(job.status, JSON.stringify(job.toJSON()), job.id);
-    return changes.changes > 0 ? job : null;
+  updateHook(hook) {
+    const changes = stmts.updateJob.run(hook.status, JSON.stringify(hook.toJSON()), hook.id);
+    return changes.changes > 0 ? hook : null;
   }
 
-  removeJob(jobId) {
-    const job = this.findJob(jobId);
-    if (job) stmts.deleteJob.run(jobId);
-    return job;
+  removeHook(hookId) {
+    const hook = this.findHook(hookId);
+    if (hook) stmts.deleteJob.run(hookId);
+    return hook;
   }
 
-  getJobBoard() {
-    return stmts.getAllJobs.all().map(row => Job.fromJSON(JSON.parse(row.data)));
+  getHookBoard(guildId) {
+    const hooks = stmts.getAllJobs.all().map(row => Hook.fromJSON(JSON.parse(row.data)));
+    return guildId ? hooks.filter(h => h.guildId === guildId) : hooks;
   }
 
-  getOpenJobs() {
-    return stmts.getOpenJobs.all('open')
-      .map(row => Job.fromJSON(JSON.parse(row.data)))
-      .filter(job => job.canAcceptParticipants());
+  getOpenHooks(guildId) {
+    const hooks = stmts.getOpenJobs.all('open')
+      .map(row => Hook.fromJSON(JSON.parse(row.data)))
+      .filter(hook => hook.canAcceptParticipants());
+    return guildId ? hooks.filter(h => h.guildId === guildId) : hooks;
   }
 
-  isUserInAnyJob(userId) {
-    return stmts.getOpenJobs.all('open')
-      .map(row => Job.fromJSON(JSON.parse(row.data)))
-      .some(job => job.isUserInvolved(userId));
+  isUserInAnyHook(userId, guildId) {
+    return this.getOpenHooks(guildId).some(hook => hook.isUserInvolved(userId));
   }
 
-  getUserActiveJob(userId) {
-    return stmts.getOpenJobs.all('open')
-      .map(row => Job.fromJSON(JSON.parse(row.data)))
-      .find(job => job.isUserInvolved(userId)) || null;
+  getUserActiveHook(userId, guildId) {
+    return this.getOpenHooks(guildId).find(hook => hook.isUserInvolved(userId)) || null;
   }
 
   // ─── Adventures ──────────────────────────────────────────────────────────────
@@ -205,7 +203,7 @@ class GameStorage {
 
   // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
-  cleanupCompletedJobs() {
+  cleanupCompletedHooks() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const result = stmts.cleanupJobs.run(cutoff);
     return result.changes;
@@ -221,8 +219,8 @@ class GameStorage {
 
   getStats() {
     return {
-      totalJobs: this.getJobBoard().length,
-      openJobs: this.getOpenJobs().length,
+      totalHooks: this.getHookBoard().length,
+      openHooks: this.getOpenHooks().length,
       activeAdventures: Object.keys(this.getActiveAdventures()).length,
       activeThreads: Object.keys(this.getActiveThreads()).length
     };

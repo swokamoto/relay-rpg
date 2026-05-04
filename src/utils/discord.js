@@ -63,6 +63,15 @@ export function getChannelId(req) {
 }
 
 /**
+ * Get guild ID from request (null in DM contexts)
+ * @param {Object} req - Express request object
+ * @returns {string|null} - Guild ID
+ */
+export function getGuildId(req) {
+  return req.body.guild_id || null;
+}
+
+/**
  * Create a standardized Discord response
  * @param {string} content - Message content
  * @param {boolean} ephemeral - Whether message should be ephemeral

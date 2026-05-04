@@ -1,4 +1,4 @@
-import { handlePostCommand, handleJobsCommand } from './jobCommands.js';
+import { handlePostCommand, handleHooksCommand } from './hookCommands.js';
 import { 
   handleBeginCommand, 
   handleStatusCommand,
@@ -33,8 +33,8 @@ export async function handleCommands(req, res, gameState) {
       case 'post':
         return await handlePostCommand(req, res, gameState);
       
-      case 'jobs':
-        return await handleJobsCommand(req, res, gameState);
+      case 'hooks':
+        return await handleHooksCommand(req, res, gameState);
       
       case 'begin':
         return await handleBeginCommand(req, res, gameState);

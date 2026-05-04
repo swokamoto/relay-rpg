@@ -3,6 +3,7 @@ import {
   createSuccessResponse, 
   getUserId, 
   getChannelId,
+  getGuildId,
   getThreadParentChannel,
   postToChannel,
   addUserToThread
@@ -168,12 +169,20 @@ export async function handleTurnCommand(req, res, gameStorage) {
   content += ` = **${result.turn.roll.total}** `;
   
   // Show outcome inline
-  if (result.turn.roll.outcome === 'success') {
+  if (result.turn.roll.outcome === 'critical_success') {
+    content += `⭐ **CRITICAL SUCCESS**`;
+  } else if (result.turn.roll.outcome === 'success') {
     content += `✅ **SUCCESS**`;
+  } else if (result.turn.roll.outcome === 'critical_failure') {
+    content += `💥 **CRITICAL FAILURE**`;
   } else if (result.turn.roll.outcome === 'failure') {
     content += `❌ **FAILURE**`;
+  } else if (result.turn.roll.tensionTriggered) {
+    content += `🤔 **PARTIAL** → 💢 **TENSION BREAKS** (3 consecutive partials = failure)`;
   } else {
-    content += `🤔 **PARTIAL**`;
+    const tension = adventure.consecutivePartials;
+    const tensionBar = tension > 0 ? ` ${'🔥'.repeat(tension)} Tension ${tension}/3` : '';
+    content += `🤔 **PARTIAL**${tensionBar}`;
   }
   
   // Show trait used inline if applicable
@@ -254,30 +263,27 @@ export async function handleBeginCommand(req, res, gameStorage) {
     ));
   }
   
-  // Find the job
-  const job = gameStorage.findJob(threadInfo.jobId);
-  if (!job) {
-    return res.send(createErrorResponse(`${EMOJIS.ERROR} Adventure job not found!`, true));
+  // Find the hook
+  const hook = gameStorage.findHook(threadInfo.jobId);
+  if (!hook) {
+    return res.send(createErrorResponse(`${EMOJIS.ERROR} Story hook not found!`, true));
   }
   
-  // Check if user can start the adventure
-  // Job poster can start it, but only actual participants are included in the adventure
-  const isJobPoster = userId === job.postedBy;
-  const isParticipant = job.getAllParticipants().includes(userId);
-  
-  if (!isJobPoster && !isParticipant) {
-    return res.send(createErrorResponse(MESSAGES.ERRORS.NOT_PARTICIPANT, true));
+  // Only the hook poster can start the adventure
+  if (userId !== hook.postedBy) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **Host Only**\n\nOnly the player who posted this story hook can start the adventure.`,
+      true
+    ));
   }
-  
-  const allParticipants = job.getAllParticipants();
-  
-  // If job poster is also a participant, they should be included
-  // If job poster is not a participant, they can start but won't be in the adventure
-  let adventureParticipants = allParticipants;
-  if (isJobPoster && !isParticipant) {
-    // Job poster wants to start but isn't a participant - allow it, but don't include them
-    // This is valid - they can start the adventure for others
+
+  // Auto-add poster to participants if not already in
+  if (!hook.participants.includes(userId)) {
+    hook.addParticipant(userId);
+    gameStorage.updateHook(hook);
   }
+
+  const adventureParticipants = hook.getAllParticipants();
   
   // Check minimum players based on actual participants, not including poster unless they joined
   if (adventureParticipants.length < GAME_CONSTANTS.MIN_PLAYERS) {
@@ -285,7 +291,7 @@ export async function handleBeginCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Need More Players**\n\n` +
       `Need ${needed} more player(s) to start. Current: ${adventureParticipants.length}/${GAME_CONSTANTS.MIN_PLAYERS}\n\n` +
-      `*Ask friends to join from the main channel using \`/jobs\`!*`,
+      `*Ask friends to join from the main channel using \`/hooks\`!*`,
       true
     ));
   }
@@ -362,13 +368,13 @@ export async function handleBeginCommand(req, res, gameStorage) {
   // Persist adventure state after begin
   gameStorage.updateAdventure(adventure);
   
-  // Remove job from job board since adventure has started
+  // Remove hook from board since adventure has started
   try {
-    gameStorage.removeJob(threadInfo.jobId);
-    console.log(`Job ${threadInfo.jobId} removed from job board - adventure started`);
+    gameStorage.removeHook(threadInfo.jobId);
+    console.log(`Hook ${threadInfo.jobId} removed from board - adventure started`);
   } catch (error) {
-    console.error('Failed to remove job from board:', error);
-    // Don't fail the adventure start if job removal fails
+    console.error('Failed to remove hook from board:', error);
+    // Don't fail the adventure start if hook removal fails
   }
   
   return res.send(createSuccessResponse(
@@ -711,28 +717,40 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
 }
 
 /**
- * Handle /leave command - Leave current job or adventure
+ * Handle /leave command - Leave current story or adventure
  */
 export async function handleLeaveCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
+  const guildId = getGuildId(req);
 
   // Check if user is in any active job
-  const activeJob = gameStorage.getUserActiveJob(userId);
-  if (!activeJob) {
+  const activeHook = gameStorage.getUserActiveHook(userId, guildId);
+  if (!activeHook) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not in Any Adventure**\n\n` +
-      `You're not currently participating in any jobs or adventures.`,
+      `You're not currently participating in any stories or adventures.`,
       true
     ));
   }
 
   // Check if adventure has already started
-  const adventure = gameStorage.findAdventureByJobId(activeJob.id);
+  const adventure = gameStorage.findAdventureByJobId(activeHook.id);
+
+  // Block the poster from leaving once the adventure is in progress
+  if (adventure && adventure.phase === ADVENTURE_PHASES.PLAYING && userId === activeHook.postedBy) {
+    return res.send(createErrorResponse(
+      `${EMOJIS.ERROR} **You Posted This Story**\n\n` +
+      `As the host, you can't leave an adventure in progress. ` +
+      `Use \`/epilogue\` and \`/finale\` to bring the story to a close.`,
+      true
+    ));
+  }
+
   if (adventure && adventure.phase === ADVENTURE_PHASES.PLAYING) {
     // Allow leaving active adventures, but warn about consequences
     let confirmMessage = `⚠️ **Leave Active Adventure?**\n\n`;
-    confirmMessage += `This will remove you from: "${activeJob.description}"\n\n`;
+    confirmMessage += `This will remove you from: "${activeHook.description}"\n\n`;
     confirmMessage += `**⚠️ Warning:** Leaving mid-adventure may disrupt the story for other players. `;
     confirmMessage += `Consider discussing with your group first.\n\n`;
     
@@ -758,7 +776,7 @@ export async function handleLeaveCommand(req, res, gameStorage) {
   }
 
   // Remove user from job
-  const result = activeJob.removeParticipant(userId);
+  const result = activeHook.removeParticipant(userId);
   if (!result.success) {
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
@@ -779,9 +797,9 @@ export async function handleLeaveCommand(req, res, gameStorage) {
         
         // Remove the associated thread if it exists
         const activeThreads = gameStorage.getActiveThreads();
-        const threadInfo = Object.values(activeThreads).find(t => t.jobId === activeJob.id);
+        const threadInfo = Object.values(activeThreads).find(t => t.jobId === activeHook.id);
         if (threadInfo) {
-          gameStorage.removeThread(activeJob.id);
+          gameStorage.removeThread(activeHook.id);
         }
         
         // Notify remaining players that adventure ended
@@ -802,14 +820,14 @@ export async function handleLeaveCommand(req, res, gameStorage) {
 
   // Update job in storage (or remove if adventure ended)
   if (adventure && adventure.participants.length < GAME_CONSTANTS.MIN_PLAYERS) {
-    // Job and adventure both ended - remove job entirely
-    gameStorage.removeJob(activeJob.id);
+    // Hook and adventure both ended - remove hook entirely
+    gameStorage.removeHook(activeHook.id);
   } else {
-    gameStorage.updateJob(activeJob);
+    gameStorage.updateHook(activeHook);
   }
 
   let responseMessage = `✅ **Left Adventure**\n\n`;
-  responseMessage += `You've left: "${activeJob.description}"\n\n`;
+  responseMessage += `You've left: "${activeHook.description}"\n\n`;
   
   // Different messaging based on whether adventure was active
   if (adventure && adventure.phase === ADVENTURE_PHASES.PLAYING) {
@@ -826,9 +844,9 @@ export async function handleLeaveCommand(req, res, gameStorage) {
     // Check if job now has too few participants (pre-game)
     const remaining = result.totalParticipants;
     if (remaining < GAME_CONSTANTS.MIN_PLAYERS) {
-      responseMessage += `⚠️ *Job now has ${remaining}/${GAME_CONSTANTS.MIN_PLAYERS} players minimum - needs more participants to start.*\n\n`;
+      responseMessage += `⚠️ *Story now has ${remaining}/${GAME_CONSTANTS.MIN_PLAYERS} players minimum - needs more participants to start.*\n\n`;
     } else {
-      responseMessage += `📊 *Job now has ${remaining} participant(s).*\n\n`;
+      responseMessage += `📊 *Story now has ${remaining} participant(s).*\n\n`;
     }
   }
   
@@ -860,10 +878,11 @@ export async function handleInviteCommand(req, res, gameStorage) {
     ));
   }
 
-  // Caller must be a participant
-  if (!adventure.isParticipant(userId)) {
+  // Only the hook poster can invite others
+  const inviteHook = gameStorage.findHook(adventure.jobId);
+  if (!inviteHook || userId !== inviteHook.postedBy) {
     return res.send(createErrorResponse(
-      `${EMOJIS.ERROR} **Not a Participant**\n\nOnly players already in this adventure can invite others.`,
+      `${EMOJIS.ERROR} **Host Only**\n\nOnly the player who posted this story hook can invite others.`,
       true
     ));
   }

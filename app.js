@@ -40,11 +40,11 @@ app.listen(PORT, '0.0.0.0', () => {
   
   // Run periodic cleanup
   setInterval(() => {
-    const cleanedJobs = gameStorage.cleanupCompletedJobs();
+    const cleanedHooks = gameStorage.cleanupCompletedHooks();
     const cleanedThreads = gameStorage.cleanupOldThreads();
     
-    if (cleanedJobs > 0 || cleanedThreads > 0) {
-      console.log(`🧹 Cleanup: ${cleanedJobs} jobs, ${cleanedThreads} threads removed`);
+    if (cleanedHooks > 0 || cleanedThreads > 0) {
+      console.log(`🧹 Cleanup: ${cleanedHooks} hooks, ${cleanedThreads} threads removed`);
     }
   }, 60 * 60 * 1000); // Run every hour
 });

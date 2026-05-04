@@ -1,15 +1,16 @@
-import { generateJobId } from '../utils/gameHelpers.js';
+import { generateHookId } from '../utils/gameHelpers.js';
 import { GAME_CONSTANTS } from '../config/constants.js';
 
 /**
- * Job class to manage adventure job postings
+ * Hook class to manage story hook postings
  */
-export class Job {
-  constructor(description, postedBy, channelId) {
-    this.id = generateJobId();
+export class Hook {
+  constructor(description, postedBy, channelId, guildId) {
+    this.id = generateHookId();
     this.description = description;
     this.postedBy = postedBy;
     this.channelId = channelId;
+    this.guildId = guildId || null;
     this.participants = [];
     this.created = new Date();
     this.status = 'open'; // open, in-progress, completed
@@ -29,11 +30,11 @@ export class Job {
       };
     }
 
-    // Check if job is still open
+    // Check if hook is still open
     if (this.status !== 'open') {
       return {
         success: false,
-        error: 'Job is no longer accepting participants'
+        error: 'This story hook is no longer accepting participants'
       };
     }
 
@@ -41,7 +42,7 @@ export class Job {
     if (this.participants.length >= GAME_CONSTANTS.MAX_PLAYERS - 1) { // -1 because poster takes one slot
       return {
         success: false,
-        error: 'Job is full'
+        error: 'This story is full'
       };
     }
 
@@ -196,6 +197,7 @@ export class Job {
       description: this.description,
       postedBy: this.postedBy,
       channelId: this.channelId,
+      guildId: this.guildId || null,
       participants: this.participants,
       created: this.created,
       status: this.status
@@ -203,13 +205,13 @@ export class Job {
   }
 
   /**
-   * Create Job from serialized data
-   * @param {Object} data - Serialized job data
-   * @returns {Job} - Job instance
+   * Create Hook from serialized data
+   * @param {Object} data - Serialized hook data
+   * @returns {Hook} - Hook instance
    */
   static fromJSON(data) {
-    const job = Object.create(Job.prototype);
-    return Object.assign(job, data, {
+    const hook = Object.create(Hook.prototype);
+    return Object.assign(hook, data, {
       created: new Date(data.created)
     });
   }

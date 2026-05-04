@@ -64,9 +64,20 @@ All actions are resolved using:
 
 | Roll | Result |
 |------|--------|
-| 2–5  | ❌ Failure |
-| 6–8  | ⚠ Partial Success (with complication) |
-| 9–12 | ✅ Success |
+| 2–3  | 💥 Critical Failure — +2 failures, something goes badly wrong |
+| 4–5  | ❌ Failure — +1 failure, things get worse |
+| 6–8  | 🤔 Partial — tension builds (see below) |
+| 9–10 | ✅ Success — +1 success |
+| 11–12 | ⭐ Critical Success — +2 successes, something goes spectacularly right |
+
+### ⚠️ Tension — The Partial Spiral
+Partial results don't directly move the scene forward or backward — but they build **tension**.
+
+- Each consecutive partial adds a 🔥 to the tension bar (shown inline with your roll)
+- **3 consecutive partials = automatic failure** — the situation breaks against you
+- Any success, failure, or crit **resets** the tension bar to zero
+
+This means hesitation has a cost. The story demands momentum.
 
 ---
 
@@ -75,10 +86,10 @@ All actions are resolved using:
 
 Each player defines **4 Required Elements**:
 
-**📋 Name** – Your character's identity (use `/name "Character Name"`)
-**📿 Conviction** – What drives your character (use `/conviction "description"`)
-**⚔️ Talent** – What they are skilled at (use `/talent "description"`)
-**🎭 Quirk** – A unique or defining trait (use `/quirk "description"`)
+- **📋 Name** – Your character's identity (use `/name "Character Name"`)
+- **📿 Conviction** – What drives your character (use `/conviction "description"`)
+- **⚔️ Talent** – What they are skilled at (use `/talent "description"`)
+- **🎭 Quirk** – A unique or defining trait (use `/quirk "description"`)
 
 These traits can be invoked during play for mechanical advantage.
 
@@ -87,7 +98,7 @@ These traits can be invoked during play for mechanical advantage.
 ## 🚪 Joining & Leaving Adventures
 
 ### Joining Stories
-- Browse available stories with `/jobs`
+- Browse available stories with `/hooks`
 - Click "Join Adventure" button on story posts  
 - You can only participate in **one story at a time**
 - Complete character required (all 4 traits: name, conviction, talent, quirk)
@@ -95,7 +106,7 @@ These traits can be invoked during play for mechanical advantage.
 ### Leaving Stories
 Use `/leave` to exit your current story:
 
-**📋 Before Story Starts (Job Phase):**
+**📋 Before Story Starts (Pre-Story Phase):**
 - Simple `/leave` - exits immediately
 - Shows how many players remain  
 - Warns if story drops below 2 player minimum
@@ -109,7 +120,7 @@ Use `/leave` to exit your current story:
 **💡 Important Notes:**
 - You cannot join another story while already in one
 - Consider discussing with your group before leaving active stories
-- Stories with insufficient players will be removed from the job board
+- Stories with insufficient players will be removed from the story board
 
 ---
 
@@ -117,9 +128,12 @@ Use `/leave` to exit your current story:
 - Each trait can be used **once per story**
 - When used, it grants **+2 to your roll**
 - You must incorporate the trait into your action narratively
+- Traits are your safety net — save them for moments that matter
 
 **Example:**
 > "Drawing on my Conviction: *Protect the innocent*, I step between the monster and the villagers." *(+2 bonus)*
+
+> **💡 Tip:** Even a +2 only shifts the odds. Use traits when a failure would really hurt, or when a success would open a door you need opened.
 
 ---
 
@@ -143,13 +157,14 @@ Each player may declare **1 Truth** about the scene
 ### Taking a Turn:
 1. **A player declares an action**
    - They describe what their character does, then roll 2d6
+   - **Your action must carry genuine risk** — if success and failure would both lead to the same place, it's not a real action
 
 2. **Another player may take the lead**
    - They must **interpret the previous result** based on the roll
    - Continue the narrative using:
      - **"...but"** → on Failure or Partial Success
      - **"...and then"** → on Success
-   - Describe their own action
+   - Describe their own action — ending with something that has clear stakes
    - Roll 2d6
    - They may also choose to use a Trait
 
@@ -235,9 +250,9 @@ There are no "wrong" moves — only interesting consequences.
 - `/talent "description"` - Define your signature ability  
 - `/quirk "description"` - Define your personality trait
 
-**Job Board:**
+**Story Board:**
 - `/post "story description"` - Create a new story for others to join
-- `/jobs` - View available stories to join
+- `/hooks` - View available stories to join
 - `/leave` - Leave your current job or adventure
 
 **Core Gameplay:**
@@ -248,6 +263,8 @@ There are no "wrong" moves — only interesting consequences.
 
 **Story Management:**
 - `/begin "scene description"` - (Host) Start the story with opening scene
+- `/invite @user` - Invite a new player into an active story (any participant)
+- `/remove @user` - (Host only) Remove a player from an active story
 - `/status` - Check story progress and character sheets
 
 **Story Completion:**

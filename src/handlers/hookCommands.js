@@ -2,7 +2,8 @@ import {
   createErrorResponse, 
   createSuccessResponse, 
   getUserId, 
-  getChannelId 
+  getChannelId,
+  getGuildId
 } from '../utils/discord.js';
 import { 
   validateAdventureDescription,
@@ -12,7 +13,7 @@ import {
   formatParticipantList, 
   getPlayerStatusMessage 
 } from '../utils/gameHelpers.js';
-import { Job } from '../models/Job.js';
+import { Hook } from '../models/Hook.js';
 import { MESSAGES, EMOJIS } from '../config/constants.js';
 import { 
   InteractionResponseType, 
@@ -21,11 +22,12 @@ import {
 } from 'discord-interactions';
 
 /**
- * Handle /post command - Create a new adventure job
+ * Handle /post command - Create a new story hook
  */
 export async function handlePostCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
+  const guildId = getGuildId(req);
   const description = req.body.data.options[0].value;
 
   // Validate description
@@ -34,9 +36,9 @@ export async function handlePostCommand(req, res, gameStorage) {
     return res.send(createErrorResponse(`❌ ${validation.error}`, true));
   }
 
-  // Create new job
-  const job = new Job(validation.description, userId, channelId);
-  gameStorage.addJob(job);
+  // Create new hook
+  const hook = new Hook(validation.description, userId, channelId, guildId);
+  gameStorage.addHook(hook);
 
   // Create instant join button for the ephemeral response
   const joinButton = {
@@ -46,7 +48,7 @@ export async function handlePostCommand(req, res, gameStorage) {
         type: 2, // BUTTON
         style: 1, // Primary
         label: 'Join Adventure',
-        custom_id: `join_job_${job.id}`,
+        custom_id: `join_hook_${hook.id}`,
         emoji: {
           name: '⚔️'
         }
@@ -55,11 +57,11 @@ export async function handlePostCommand(req, res, gameStorage) {
   };
 
   // Send ephemeral confirmation to poster
-  const ephemeralContent = `${EMOJIS.SUCCESS} **Adventure Posted!**\n\n` +
-                          `**Story:** "${job.description}"\n\n` +
+  const ephemeralContent = `${EMOJIS.SUCCESS} **Story Hook Posted!**\n\n` +
+                          `**Story:** "${hook.description}"\n\n` +
                           `${EMOJIS.LIGHTBULB} *Click below to join your own adventure, or others can find it in the channel!*`;
 
-  // Also create a public job posting for others
+  // Also create a public hook posting for others
   try {
     await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: 'POST',
@@ -68,8 +70,8 @@ export async function handlePostCommand(req, res, gameStorage) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        content: `${EMOJIS.ADVENTURE} **New Adventure Available!**\n\n` +
-                `**Quest:** "${job.description}"\n\n` +
+        content: `${EMOJIS.ADVENTURE} **New Story Available!**\n\n` +
+                `**Story:** "${hook.description}"\n\n` +
                 `${EMOJIS.LIGHTBULB} *Join instantly using the button below!*`,
         components: [{
           type: 1, // ACTION_ROW
@@ -77,70 +79,71 @@ export async function handlePostCommand(req, res, gameStorage) {
             type: 2, // BUTTON
             style: 1, // Primary
             label: 'Join Adventure',
-            custom_id: `join_job_${job.id}`,
+            custom_id: `join_hook_${hook.id}`,
             emoji: { name: '⚔️' }
           }, {
             type: 2, // BUTTON  
             style: 2, // Secondary
-            label: 'View All Jobs',
-            custom_id: 'view_all_jobs',
+            label: 'Browse Stories',
+            custom_id: 'view_all_hooks',
             emoji: { name: '📋' }
           }]
         }]
       })
     });
   } catch (error) {
-    console.error('Error posting public job message:', error);
+    console.error('Error posting public hook message:', error);
   }
 
   return res.send(createSuccessResponse(ephemeralContent, true, [joinButton]));
 }
 
 /**
- * Handle /jobs command - List available adventure jobs
+ * Handle /hooks command - List available story hooks
  */
-export async function handleJobsCommand(req, res, gameStorage) {
+export async function handleHooksCommand(req, res, gameStorage) {
   const userId = getUserId(req);
-  const availableJobs = gameStorage.getJobBoard();
+  const guildId = getGuildId(req);
+  const availableHooks = gameStorage.getHookBoard(guildId);
 
-  if (availableJobs.length === 0) {
+  if (availableHooks.length === 0) {
     return res.send(createSuccessResponse(
-      `${EMOJIS.WAITING} **No Adventures Available**\n\n` +
-      `Be the first to post an adventure! Use \`/post "description"\` to create one.\n\n` +
-      `${EMOJIS.LIGHTBULB} *Adventure descriptions should be engaging and 10-200 characters long.*`,
-      true // Make ephemeral
+      `${EMOJIS.WAITING} **No Stories Available**\n\n` +
+      `Be the first to post one! Use \`/post "description"\` to create a story hook.\n\n` +
+      `${EMOJIS.LIGHTBULB} *Story descriptions should be engaging and 10-200 characters long.*`,
+      true
     ));
   }
 
-  // Filter available jobs (only show ones that can accept participants, limit to 5)
-  const displayJobs = availableJobs
-    .filter(job => job.canAcceptParticipants())
-    .slice(0, 5); // Limit to 5 most recent
+  // Filter available hooks (only show ones that can accept participants, limit to 5)
+  const displayHooks = availableHooks
+    .filter(hook => hook.canAcceptParticipants())
+    .slice(0, 5);
 
-  if (displayJobs.length === 0) {
+  if (displayHooks.length === 0) {
     return res.send(createSuccessResponse(
-      `${EMOJIS.WAITING} **No Available Adventures**\n\n` +
-      `All current adventures are in progress or completed.\n` +
-      `Use \`/post "description"\` to create a new adventure!`,
-      true // Make ephemeral
+      `${EMOJIS.WAITING} **No Open Stories**\n\n` +
+      `All current stories are in progress or completed.\n` +
+      `Use \`/post "description"\` to create a new story!`,
+      true
     ));
   }
 
-  let content = `${EMOJIS.ADVENTURE} **Available Adventures** (${displayJobs.length})\n\n`;
+  let content = `${EMOJIS.ADVENTURE} **Available Stories** (${displayHooks.length})\n\n`;
   const components = [];
 
-  displayJobs.forEach((job, index) => {
-    content += `**${index + 1}.** ${job.getDisplayText()}\n\n`;
+  displayHooks.forEach((hook, index) => {
+    content += `**${index + 1}.** ${hook.getDisplayText()}\n\n`;
     
-    // Create individual action row for each job's button
+    // Create individual action row for each hook's button
     components.push({
       type: 1, // ACTION_ROW
       components: [
         {
           type: 2, // BUTTON
           style: 1, // Primary
-          label: `Join "${job.description.substring(0, 20)}${job.description.length > 20 ? '...' : ''}"`,
-          custom_id: `join_job_${job.id}`,
+          label: `Join "${hook.description.substring(0, 20)}${hook.description.length > 20 ? '...' : ''}"`,
+          custom_id: `join_hook_${hook.id}`,
           emoji: {
             name: '⚔️'
           }

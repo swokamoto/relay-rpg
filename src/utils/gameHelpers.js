@@ -26,11 +26,11 @@ export function generateAdventureId(jobId) {
 }
 
 /**
- * Generate unique ID for jobs
- * @returns {string} - Job ID
+ * Generate unique ID for hooks
+ * @returns {string} - Hook ID
  */
-export function generateJobId() {
-  return `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+export function generateHookId() {
+  return `hook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**

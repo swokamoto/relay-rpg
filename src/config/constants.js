@@ -19,7 +19,9 @@ export const GAME_CONSTANTS = {
   TRAITS_PER_PLAYER: 3,
   TRUTHS_PER_SCENE: 1,
   SUCCESS_THRESHOLD: 9,
-  FAILURE_THRESHOLD: 5
+  FAILURE_THRESHOLD: 5,
+  CRITICAL_SUCCESS_THRESHOLD: 11,
+  CRITICAL_FAILURE_THRESHOLD: 3
 };
 
 // Adventure Phases
@@ -69,7 +71,7 @@ export const MESSAGES = {
     CHARACTER_CREATION_NOT_STARTED: "❌ Character creation hasn't started yet. Use `/begin` first!",
     WRONG_PHASE: "❌ It's not time for {phase}! Current phase: {currentPhase}",
     NOT_YOUR_TURN: "❌ It's <@{currentPlayer}>'s turn to {action}!",
-    JOB_NOT_AVAILABLE: 'This job is no longer available.',
+    HOOK_NOT_AVAILABLE: 'This story hook is no longer available.',
     ALREADY_JOINED: 'You have already joined this adventure!',
     THREAD_CREATE_ERROR: '❌ Error creating adventure thread. Please try again.',
     INSUFFICIENT_PLAYERS: '❌ Need at least {minPlayers} players to start an adventure. Current: {currentPlayers}',

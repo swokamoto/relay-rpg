@@ -27,6 +27,7 @@ export class Adventure {
     this.sceneState = SCENE_STATES.SETUP;
     this.sceneSuccesses = 0;
     this.sceneFailures = 0;
+    this.consecutivePartials = 0; // Tension tracker — 3 in a row = failure
     this.failedScenes = 0; // Tracks failures for final scene penalty
     this.created = new Date();
     this.lastActivityAt = new Date(); // Track last activity for leave command
@@ -418,6 +419,12 @@ export class Adventure {
    */
   getNarrativePrompt(outcome, total) {
     switch (outcome) {
+      case 'critical_success':
+        return {
+          type: 'Yes, and then some!',
+          description: `Critical success! Your action works brilliantly and opens up an unexpected advantage or opportunity.`,
+          examples: ['You exceed all expectations', 'You succeed and gain a major advantage', 'Something goes remarkably right']
+        };
       case 'success':
         return {
           type: 'Yes, and...',
@@ -435,6 +442,12 @@ export class Adventure {
           type: 'No, and...',
           description: `Failure with consequence! Your action doesn't work and makes things worse.`,
           examples: ['You fail and alert enemies', 'It backfires spectacularly', 'You fail and lose something valuable']
+        };
+      case 'critical_failure':
+        return {
+          type: 'No, and it gets worse!',
+          description: `Critical failure! Your action backfires badly and the situation deteriorates significantly.`,
+          examples: ['Everything goes wrong at once', 'You fail and create a new serious problem', 'A catastrophic setback']
         };
       default:
         return {
@@ -629,14 +642,33 @@ export class Adventure {
       this.adventureTraitUsage[userId][traitType] = true;
     }
 
-    // Determine result (5- fail, 6-8 partial, 9+ success)
+    // Determine result (3- critical fail, 4-5 fail, 6-8 partial, 9-10 success, 11+ critical success)
     let outcome = 'partial';
-    if (total <= GAME_CONSTANTS.FAILURE_THRESHOLD) {
+    let tensionTriggered = false;
+    if (total <= GAME_CONSTANTS.CRITICAL_FAILURE_THRESHOLD) {
+      outcome = 'critical_failure';
+      this.sceneFailures = Math.min(this.sceneFailures + 2, 3);
+      this.consecutivePartials = 0;
+    } else if (total <= GAME_CONSTANTS.FAILURE_THRESHOLD) {
       outcome = 'failure';
       this.sceneFailures++;
+      this.consecutivePartials = 0;
+    } else if (total >= GAME_CONSTANTS.CRITICAL_SUCCESS_THRESHOLD) {
+      outcome = 'critical_success';
+      this.sceneSuccesses = Math.min(this.sceneSuccesses + 2, 3);
+      this.consecutivePartials = 0;
     } else if (total >= GAME_CONSTANTS.SUCCESS_THRESHOLD) {
       outcome = 'success';
       this.sceneSuccesses++;
+      this.consecutivePartials = 0;
+    } else {
+      // partial
+      this.consecutivePartials++;
+      if (this.consecutivePartials >= 3) {
+        tensionTriggered = true;
+        this.sceneFailures++;
+        this.consecutivePartials = 0;
+      }
     }
 
     // Check if scene is complete
@@ -676,6 +708,7 @@ export class Adventure {
       bonus,
       total,
       outcome,
+      tensionTriggered,
       traitUsed,
       scene: {
         successes: this.sceneSuccesses,
@@ -749,6 +782,7 @@ export class Adventure {
     this.sceneState = SCENE_STATES.SETUP;
     this.sceneSuccesses = 0;
     this.sceneFailures = 0;
+    this.consecutivePartials = 0;
     
     // Reset narrative for new scene
     this.resetNarrativeForNewScene();
@@ -1012,6 +1046,7 @@ export class Adventure {
       finaleContent: this.finaleContent,
       lastActivityAt: this.lastActivityAt,
       startedBy: this.startedBy || null,
+      consecutivePartials: this.consecutivePartials || 0,
       players: playersData,
       adventureTraitUsage: this.adventureTraitUsage,
       narrative: this.narrative
@@ -1038,6 +1073,7 @@ export class Adventure {
       sceneState: data.sceneState || SCENE_STATES.SETUP,
       sceneSuccesses: data.sceneSuccesses || 0,
       sceneFailures: data.sceneFailures || 0,
+      consecutivePartials: data.consecutivePartials || 0,
       failedScenes: data.failedScenes || 0,
       created: new Date(data.created),
       locked: data.locked,

@@ -3,6 +3,7 @@ import {
   createSuccessResponse, 
   getUserId, 
   getChannelId,
+  getGuildId,
   createThread,
   addUserToThread
 } from '../utils/discord.js';
@@ -16,25 +17,26 @@ import { MESSAGES, EMOJIS, GAME_CONSTANTS } from '../config/constants.js';
 import process from 'process';
 
 /**
- * Handle job join button clicks
+ * Handle hook join button clicks
  */
-export async function handleJobJoinButton(req, res, gameStorage, componentId) {
-  const jobId = componentId.replace('join_job_', '');
-  const job = gameStorage.findJob(jobId);
+export async function handleHookJoinButton(req, res, gameStorage, componentId) {
+  const hookId = componentId.replace('join_hook_', '');
+  const hook = gameStorage.findHook(hookId);
   
-  if (!job) {
-    return res.send(createErrorResponse(MESSAGES.ERRORS.JOB_NOT_AVAILABLE, true));
+  if (!hook) {
+    return res.send(createErrorResponse(MESSAGES.ERRORS.HOOK_NOT_AVAILABLE, true));
   }
   
   const userId = getUserId(req);
   const channelId = getChannelId(req);
+  const guildId = getGuildId(req);
   
-  // Check if user is already participating in any job
-  const activeJob = gameStorage.getUserActiveJob(userId);
-  if (activeJob && activeJob.id !== jobId) {
+  // Check if user is already participating in any hook
+  const activeHook = gameStorage.getUserActiveHook(userId, guildId);
+  if (activeHook && activeHook.id !== hookId) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Already in an Adventure!**\n\n` +
-      `You're already part of: "${activeJob.description}"\n\n` +
+      `You're already part of: "${activeHook.description}"\n\n` +
       `Complete or leave your current adventure before joining another.`,
       true
     ));
@@ -68,41 +70,41 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
   }
   
   // Check if already joined - if so, redirect to existing thread
-  if (job.participants.includes(userId)) {
+  if (hook.participants.includes(userId)) {
     const activeThreads = gameStorage.getActiveThreads();
-    const threadInfo = activeThreads[jobId];
+    const threadInfo = activeThreads[hookId];
     
     if (threadInfo) {
-      // User is already in job and thread exists - redirect them
+      // User is already in hook and thread exists - redirect them
       return res.send(createSuccessResponse(
         `${EMOJIS.ADVENTURE} **Welcome back to your adventure!**\n\n` +
-        `You're already part of "${job.description}"\n\n` +
+        `You're already part of "${hook.description}"\n\n` +
         `Continue your adventure in <#${threadInfo.threadId}>! 🎲`,
         true
       ));
     } else {
-      // User is in job but no thread yet - this shouldn't happen, but handle gracefully
+      // User is in hook but no thread yet - handle gracefully
       return res.send(createErrorResponse(
-        `❌ You're already part of this adventure, but the thread hasn't been created yet. Please wait for more players to join.`,
+        `❌ You're already part of this story, but the thread hasn't been created yet. Please wait for more players to join.`,
         true
       ));
     }
   }
   
-  // Add user to job
-  const addResult = job.addParticipant(userId);
+  // Add user to hook
+  const addResult = hook.addParticipant(userId);
   if (!addResult.success) {
     return res.send(createErrorResponse(`❌ ${addResult.error}`, true));
   }
   
   // Create or find existing thread
   const activeThreads = gameStorage.getActiveThreads();
-  let threadInfo = activeThreads[jobId];
+  let threadInfo = activeThreads[hookId];
   
   try {
     if (!threadInfo) {
       // Create new Discord thread
-      const threadName = `${EMOJIS.SWORD} ${truncateForThreadName(job.description)}`;
+      const threadName = `${EMOJIS.SWORD} ${truncateForThreadName(hook.description)}`;
       
       const threadData = await createThread(
         channelId, 
@@ -110,7 +112,7 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
         config.game.threadAutoArchiveDuration
       );
       
-      console.log('Thread created:', threadData); // Debug log
+      console.log('Thread created:', threadData);
       
       if (!threadData || !threadData.id) {
         throw new Error('Thread creation failed - no thread ID returned');
@@ -118,14 +120,14 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
       
       // Store thread info - only include actual participants
       threadInfo = {
-        jobId: jobId,
+        jobId: hookId,
         threadId: threadData.id,
-        participants: [userId], // Only the joining user
+        participants: [userId],
         created: new Date()
       };
-      gameStorage.addThread(jobId, threadInfo);
+      gameStorage.addThread(hookId, threadInfo);
       
-      console.log('Stored thread info:', threadInfo); // Debug log
+      console.log('Stored thread info:', threadInfo);
       
       // Only add the joining user to thread
       await addUserToThread(threadData.id, userId);
@@ -137,14 +139,14 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
     }
     
     // Don't auto-create adventures - let /begin handle it
-    const allParticipants = job.getAllParticipants();
+    const allParticipants = hook.getAllParticipants();
 
-    // Persist updated job
-    gameStorage.updateJob(job);
+    // Persist updated hook
+    gameStorage.updateHook(hook);
     
     // Simple success response for the user (ephemeral)
     let content = `${EMOJIS.ADVENTURE} **Joined Adventure!**\n\n` +
-      `**Story:** "${job.description}"\n` +
+      `**Story:** "${hook.description}"\n` +
       `**Players:** ${allParticipants.length}\n\n`;
     
     // Add thread link with safety check
@@ -155,25 +157,24 @@ export async function handleJobJoinButton(req, res, gameStorage, componentId) {
       console.error('Thread info missing or invalid:', threadInfo);
     }
     
-    return res.send(createSuccessResponse(content, true)); // Always ephemeral
+    return res.send(createSuccessResponse(content, true));
     
   } catch (error) {
     console.error('Error creating thread:', error);
     
-    // Rollback job participation if thread creation failed
-    job.removeParticipant(userId);
+    // Rollback hook participation if thread creation failed
+    hook.removeParticipant(userId);
     
     return res.send(createErrorResponse(MESSAGES.ERRORS.THREAD_CREATE_ERROR, true));
   }
 }
 
 /**
- * Handle view all jobs button click
+ * Handle browse stories button click
  */
-export async function handleViewAllJobsButton(req, res, gameStorage) {
-  // Reuse the existing jobs command logic
-  const { handleJobsCommand } = await import('./jobCommands.js');
-  return await handleJobsCommand(req, res, gameStorage);
+export async function handleViewAllHooksButton(req, res, gameStorage) {
+  const { handleHooksCommand } = await import('./hookCommands.js');
+  return await handleHooksCommand(req, res, gameStorage);
 }
 
 /**
@@ -184,11 +185,11 @@ export async function handleComponents(req, res, gameState) {
   const componentId = data.custom_id;
 
   try {
-    if (componentId.startsWith('join_job_')) {
-      return await handleJobJoinButton(req, res, gameState, componentId);
+    if (componentId.startsWith('join_hook_')) {
+      return await handleHookJoinButton(req, res, gameState, componentId);
     }
-    else if (componentId === 'view_all_jobs') {
-      return await handleViewAllJobsButton(req, res, gameState);
+    else if (componentId === 'view_all_hooks') {
+      return await handleViewAllHooksButton(req, res, gameState);
     }
     else {
       console.warn('Unknown component ID:', componentId);

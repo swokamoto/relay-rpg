@@ -2,12 +2,12 @@ import 'dotenv/config';
 import { capitalize, InstallGlobalCommands } from './utils.js';
 const POST_COMMAND = {
   name: 'post',
-  description: 'Post a job to the tavern board',
+  description: 'Post a story hook to the board',
   options: [
     {
       type: 3,
       name: 'description',
-      description: 'Describe the job or scenario',
+      description: 'Describe the story hook or scenario',
       required: true,
     },
   ],
@@ -16,9 +16,9 @@ const POST_COMMAND = {
   contexts: [0, 2],
 };
 
-const JOBS_COMMAND = {
-  name: 'jobs',
-  description: 'View available jobs on the tavern board',
+const HOOKS_COMMAND = {
+  name: 'hooks',
+  description: 'Browse available stories on the board',
   type: 1,
   integration_types: [0, 1],
   contexts: [0, 2],
@@ -273,7 +273,7 @@ const FINALE_COMMAND = {
 
 const LEAVE_COMMAND = {
   name: 'leave',
-  description: 'Leave your current job or adventure',
+  description: 'Leave your current story or adventure',
   options: [
     {
       type: 5,
@@ -319,6 +319,6 @@ const KICK_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [POST_COMMAND, JOBS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND, INVITE_COMMAND, KICK_COMMAND];
+const ALL_COMMANDS = [POST_COMMAND, HOOKS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND, INVITE_COMMAND, KICK_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

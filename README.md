@@ -1,6 +1,6 @@
 # Relay RPG
 
-A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join stories through a job board system, and build narratives together through turn-based scenes.
+A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join stories through a story board system, and build narratives together through turn-based scenes.
 
 ## Core Concept
 Like a relay race, each player takes their turn to advance the story, using their character traits when needed, then passes the "narrative baton" to the next player. Everyone works together toward completing the story.
@@ -12,7 +12,7 @@ Like a relay race, each player takes their turn to advance the story, using thei
 - **Four Required Elements**: Name + Conviction + Talent + Quirk
 - **Trait System**: Each trait provides +2 bonus when used, once per story
 
-### 📋 Job Board System
+### 📋 Story Board System
 - **Story Posting**: Anyone can post story scenarios for others to join
 - **Instant Join Buttons**: Click to join available stories  
 - **Thread-Based Adventures**: Each story gets its own discussion thread
@@ -41,12 +41,12 @@ relay-rpg/
 │   ├── handlers/
 │   │   ├── adventureCommands.js  # Story gameplay commands
 │   │   ├── characterCommands.js  # Character creation commands
-│   │   ├── jobCommands.js        # Job board commands
+│   │   ├── hookCommands.js        # Job board commands
 │   │   ├── components.js         # Discord button/component handlers
 │   │   └── index.js             # Handler routing
 │   ├── models/
 │   │   ├── Adventure.js    # Story/game state management
-│   │   ├── Job.js         # Job posting model
+│   │   ├── Hook.js         # Job posting model
 │   │   └── Player.js      # Character data model
 │   ├── storage/
 │   │   └── gameState.js   # In-memory data storage
@@ -131,7 +131,7 @@ relay-rpg/
 /quirk "description"        # Their unique trait
 ```
 
-### Job Board
+### Story Board
 ```
 /post "story description"   # Create a new story for others to join
 /jobs                       # View available stories
@@ -156,7 +156,7 @@ relay-rpg/
 ## How to Play
 
 1. **Create Your Character** - Use `/name`, `/conviction`, `/talent`, and `/quirk`
-2. **Find a Story** - Use `/jobs` or create one with `/post`  
+2. **Find a Story** - Use `/hooks` or create one with `/post`  
 3. **Join the Story** - Click the join button on story posts
 4. **Play Through Acts** - Take turns with `/turn`, declare truths with `/truth`
 5. **Leave if Needed** - Use `/leave` (before start) or `/leave confirm:true` (during story)
@@ -177,7 +177,7 @@ See `RULES_ENHANCED.md` for detailed gameplay rules and examples.
    ```
 
 2. **Join a Story**:
-   - Use `/jobs` to see available stories
+   - Use `/hooks` to see available stories
    - Click the "Join Adventure" button on any story that interests you
    - Wait for the Host to start with `/begin`
    - Use `/leave` to exit before the story starts if needed

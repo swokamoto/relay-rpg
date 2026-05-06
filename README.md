@@ -1,34 +1,59 @@
 # Relay RPG
 
-A collaborative storytelling RPG Discord bot where players pass narrative control like a relay race. Create characters with unique traits, join stories through a story board system, and build narratives together through turn-based scenes.
+A multiplayer Discord bot where players build stories together, taking turns to move the narrative forward. Each player has a persistent character, and the story plays out across a series of scenes with dice rolls and shared decisions.
 
-## Core Concept
-Like a relay race, each player takes their turn to advance the story, using their character traits when needed, then passes the "narrative baton" to the next player. Everyone works together toward completing the story.
+## What It Does
 
-## Features
+- Characters are created once and carry over between different stories
+- Players take turns writing the story, with dice rolls determining success
+- Multiple players can be in active stories at the same time
+- Finished stories get collected and posted to the community as a chronicle
 
-### 🎭 Character Creation
-- **Permanent Characters**: Create one character that persists across all stories
-- **Four Required Elements**: Name + Conviction + Talent + Quirk
-- **Trait System**: Each trait provides +2 bonus when used, once per story
+## How I Built It
 
-### 📋 Story Board System
-- **Story Posting**: Anyone can post story scenarios for others to join
-- **Instant Join Buttons**: Click to join available stories  
-- **Thread-Based Adventures**: Each story gets its own discussion thread
-- **Flexible Participation**: Leave before start or during play (with confirmation)
-- **One Story Limit**: Players can only join one adventure at a time
+### Keeping track of whose turn it is
+Each story has a state object that tracks the current player, what's waiting to happen, and where the scene is in its lifecycle. Before any action goes through, the bot checks whether it actually makes sense right now — wrong player, wrong phase, or something already in progress all get caught and rejected with a helpful message.
 
-### 🎲 Narrative Gameplay
-- **2d6 Dice System**: Simple success/failure mechanics with partial success
-- **Turn-Based Storytelling**: Players take turns building the narrative
-- **Scene Truths**: Declare facts about each scene that become canon
-- **4-Act Structure**: Stories progress through Act I → II → III → Finale
+### Handling two players hitting a button at the same time
+Discord sends each slash command as a separate web request, so there's no guarantee they arrive in order. I added a simple lock to the story state — when someone's turn is processing, any overlapping action from another player gets blocked until the first one finishes. If something goes wrong mid-turn and the lock gets stuck, there's a cleanup check that clears it so the game doesn't freeze permanently.
 
-### 🏆 Story Completion
-- **Chronicle System**: Finale and epilogues collected and posted together
-- **Community Sharing**: Completed stories shared with the whole server
-- **Epilogue Contributions**: Character growth, unresolved threads, and future hooks
+### Making sure games survive restarts
+The bot runs on Fly.io and can restart at any time. I didn't want active games to just disappear, so everything gets saved to a SQLite database before the bot responds. If the server restarts mid-game, all the story state is still there when it comes back up.
+
+### Keeping the code organized
+Each slash command routes to its own handler file. Every handler follows the same pattern: read the current state, check if the action is valid, make the change, save it, then respond. Keeping that flow consistent made it a lot easier to track down bugs and add new commands.
+
+## Challenges
+
+**Two players acting at once** — Discord doesn't queue commands for you, so I had to handle the case where two players submit actions within milliseconds of each other. The lock system was the solution, but I also had to think through what happens when a lock never gets released (timeout + cleanup).
+
+**Games surviving server restarts** — Early on I kept everything in memory, which meant a restart wiped all active games. Switching to SQLite and writing state before every response fixed that, but it also meant being careful about when exactly writes happen so nothing gets out of sync.
+
+**Players joining or leaving mid-game** — The participant list and each player's trait usage are tracked separately, so someone leaving or being added mid-story doesn't break the state for everyone else.
+
+## How a Command Works
+
+```
+User (Discord)
+     │
+     ▼ slash command
+  app.js  ──► handlers/index.js  ──► adventureCommands.js
+                                  ──► characterCommands.js
+                                  ──► hookCommands.js
+                                  ──► components.js (button clicks)
+                                        │
+                                        ▼
+                                  models/Adventure.js   ◄──► storage/gameState.js
+                                  models/Player.js              │
+                                  models/Hook.js                ▼
+                                                          SQLite (better-sqlite3)
+```
+
+Discord sends the command → the right handler picks it up → checks the current game state → makes the update → saves to the database → sends the response back.
+
+## Tech Stack
+
+Node.js · Discord Interactions API · SQLite (`better-sqlite3`) · Fly.io · Docker
 
 ## Project Structure
 

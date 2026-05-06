@@ -5,9 +5,28 @@
 
 ## What Kind of Game Is This?
 
-Relay RPG is a **play-by-post storytelling game**. You're not trying to win — you're trying to tell a story worth reading. The dice create stakes, not outcomes. What the dice give you is a *constraint*, and constraints are what make stories interesting.
+Relay RPG is a **play-by-post storytelling game**. You're not trying to win — you're trying to leave the next person something worth inheriting.
+
+Every turn, you receive a scene in a specific condition: a roll result, a tension level, an act hanging in the balance. Your job isn't just to take an action. It's to pick up what you were handed, do something interesting with it, and pass it on richer than you got it. The relay metaphor is literal — you're running a leg, then handing the baton.
+
+The dice don't decide what happens. They tell you what *kind* of interesting thing you have to make happen. A roll of 7 doesn't mean "you sort of succeed" — it means the scene hands you a complication and asks you to write it. Constraint is what makes improv interesting, and the dice are the source of constraint here.
+
+The most common result on 2d6 is a partial (6–8). Clean victories and clean failures are the exceptions. The game is built around complications being the *default* — so the real skill isn't learning to win, it's learning to write interesting problems for the next person to inherit.
 
 Think of it less like a board game and more like **collaborative improv with consequences**.
+
+---
+
+## 🧭 Game Structure
+
+Each story is divided into four Acts:
+
+**Act I** → **Act II** → **Act III** → **Climax**
+
+Each Act ends when one of the following occurs:
+
+✅ **3 Successes** → The party overcomes the challenge  
+❌ **3 Failures** → The situation worsens or shifts dramatically
 
 ---
 
@@ -22,19 +41,6 @@ Or picture your crew's battered ship limping into a harbor where the locals trad
 Or maybe you're all packed into a van, headlights cutting through the mist as you roll into a town with more legends than streetlights. What's the weirdest clue you've brought, and who's the first to spot something that shouldn't be there?
 
 Let these scenes spark your own. Twist them, blend them, or invent something new together.
-
----
-
-## 🧭 Game Structure
-
-Each story is divided into four Acts:
-
-**Act I** → **Act II** → **Act III** → **Climax**
-
-Each Act ends when one of the following occurs:
-
-✅ **3 Successes** → The party overcomes the challenge  
-❌ **3 Failures** → The situation worsens or shifts dramatically
 
 ---
 
@@ -130,6 +136,21 @@ This isn't a punishment — it's a pacing mechanism. If your table keeps landing
 
 ---
 
+## 🌍 Scene Truths
+
+At the start of each Act, every player may declare **1 Truth** about the scene. Truths become canon instantly.
+
+**Good truths do two things at once:**
+- Establish something useful or interesting about the environment
+- Subtly set up something for later
+
+> *"The station has been abandoned for at least a decade — the emergency lights are running on backup power and they're almost out."*  
+> (Sets atmosphere AND creates a ticking clock)
+
+Truths can be physical details, facts about the situation, things your character knows, or emotional dynamics in the room. You're not saying what your character *does* — you're saying what *is*.
+
+---
+
 ## 🔁 Turn Structure
 
 A turn has three parts — all written together as your `/turn` description:
@@ -168,6 +189,26 @@ Player B did three things: acknowledged the partial (the noise), put themselves 
 
 ---
 
+## 💠 Traits — Using Them Well
+
+Each trait can be used **once per story** for a **+2 to your roll** — once spent, they're gone until the next story. You must incorporate the trait into your action narratively.
+
+The +2 shifts your odds meaningfully. But traits have a second function: they're **narrative declarations**. When you invoke a trait, you're saying *this moment is important enough to define my character by.*
+
+**Good times to use a trait:**
+1. When failure would end something important — a scene at 2 failures, a critical moment
+2. When you want a moment to land — the climax of an arc you've been building
+3. When the trait fits the fiction perfectly and it would feel wrong *not* to use it
+
+**Hold off when:**
+1. It's the first roll of the game (you haven't earned the dramatic weight yet)
+2. A partial is honestly fine — complications drive good stories
+3. When someone else's trait use would tell the better story right now
+
+> **💡 Tip:** Even a +2 only shifts the odds. Save traits for moments that matter.
+
+---
+
 ## 🌉 Act Transitions
 
 When an Act ends, the **completing player** (who rolled the final success/failure) writes the transition to the next scene using `/transition`.
@@ -186,41 +227,6 @@ A **success transition** shouldn't feel like the story is over — victories com
 A **failure transition** shouldn't feel like a dead end — what did going wrong *reveal*, and how does that change the next move?
 
 > The best transitions make the next scene feel *inevitable* given what just happened.
-
----
-
-## 🌍 Scene Truths
-
-At the start of each Act, every player may declare **1 Truth** about the scene. Truths become canon instantly.
-
-**Good truths do two things at once:**
-- Establish something useful or interesting about the environment
-- Subtly set up something for later
-
-> *"The station has been abandoned for at least a decade — the emergency lights are running on backup power and they're almost out."*  
-> (Sets atmosphere AND creates a ticking clock)
-
-Truths can be physical details, facts about the situation, things your character knows, or emotional dynamics in the room. You're not saying what your character *does* — you're saying what *is*.
-
----
-
-## 💠 Traits — Using Them Well
-
-Each trait can be used **once per story** for a **+2 to your roll** — once spent, they're gone until the next story. You must incorporate the trait into your action narratively.
-
-The +2 shifts your odds meaningfully. But traits have a second function: they're **narrative declarations**. When you invoke a trait, you're saying *this moment is important enough to define my character by.*
-
-**Good times to use a trait:**
-1. When failure would end something important — a scene at 2 failures, a critical moment
-2. When you want a moment to land — the climax of an arc you've been building
-3. When the trait fits the fiction perfectly and it would feel wrong *not* to use it
-
-**Hold off when:**
-1. It's the first roll of the game (you haven't earned the dramatic weight yet)
-2. A partial is honestly fine — complications drive good stories
-3. When someone else's trait use would tell the better story right now
-
-> **💡 Tip:** Even a +2 only shifts the odds. Save traits for moments that matter.
 
 ---
 
@@ -264,18 +270,16 @@ Once all epilogues are submitted, the complete story (finale + all epilogues) is
 
 ---
 
-## ☠️ Death & Rerolling
-
-Character death is never a mechanical consequence and cannot be caused by another player. If you wish for your character to die, you may choose this in your epilogue — treat it as a major story moment. Otherwise, all characters survive regardless of outcome.
-
----
-
 ## 🤝 Table Etiquette
 
 - **Build on** what others create — don't override or ignore
 - Keep actions **concise and forward-moving**
 - **Embrace complications** — they make the story better
 - **Share the spotlight**
+
+## ☠️ Death & Rerolling
+
+Character death is never a mechanical consequence and cannot be caused by another player. If you wish for your character to die, you may choose this in your epilogue — treat it as a major story moment. Otherwise, all characters survive regardless of outcome.
 
 ---
 

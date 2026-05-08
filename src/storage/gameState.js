@@ -35,7 +35,7 @@ const stmts = {
   getThreadByThreadId: db.prepare('SELECT data FROM threads WHERE thread_id = ?'),
   getAllThreads: db.prepare('SELECT data FROM threads'),
   deleteThread: db.prepare('DELETE FROM threads WHERE job_id = ?'),
-  cleanupThreads: db.prepare("DELETE FROM threads WHERE json_extract(data, '$.created') < ?"),
+  cleanupThreads: db.prepare("DELETE FROM threads WHERE json_extract(data, '$.created') < ? AND NOT EXISTS (SELECT 1 FROM adventures WHERE adventures.thread_id = threads.thread_id)"),
 };
 
 class GameStorage {

@@ -20,23 +20,15 @@ export async function handleTransitionCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
   
-  // Find thread info
-  const activeThreads = gameStorage.getActiveThreads();
-  const threadInfo = Object.values(activeThreads).find(t => t.threadId === channelId);
-  
-  if (!threadInfo) {
+  // Find the adventure
+  let adventure = gameStorage.findAdventureByThread(channelId);
+  if (!adventure) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
       `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
-  }
-  
-  // Find the adventure
-  let adventure = gameStorage.findAdventureByThread(channelId);
-  if (!adventure) {
-    return res.send(createErrorResponse(`${EMOJIS.ERROR} No active adventure found in this thread!`, true));
   }
 
   // Get options from command
@@ -115,23 +107,15 @@ export async function handleTurnCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
   
-  // Find thread info
-  const activeThreads = gameStorage.getActiveThreads();
-  const threadInfo = Object.values(activeThreads).find(t => t.threadId === channelId);
-  
-  if (!threadInfo) {
+  // Find the adventure
+  let adventure = gameStorage.findAdventureByThread(channelId);
+  if (!adventure) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
       `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
-  }
-  
-  // Find the adventure
-  let adventure = gameStorage.findAdventureByThread(channelId);
-  if (!adventure) {
-    return res.send(createErrorResponse(`${EMOJIS.ERROR} No active story found in this thread!`, true));
   }
 
   if (adventure.phase !== ADVENTURE_PHASES.PLAYING) {

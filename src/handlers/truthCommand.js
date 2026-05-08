@@ -6,9 +6,6 @@ import {
 } from '../utils/discord.js';
 import { MESSAGES, EMOJIS } from '../config/constants.js';
 
-/**
- * Handle /truth command - Declare truth about current scene
- */
 export async function handleTruthCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);

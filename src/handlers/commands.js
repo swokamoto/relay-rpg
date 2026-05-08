@@ -16,8 +16,7 @@ import {
   handleConvictionCommand,
   handleTalentCommand,
   handleQuirkCommand,
-  handleCharacterCommand,
-  handleUseTraitCommand
+  handleCharacterCommand
 } from './characterCommands.js';
 import { createErrorResponse } from '../utils/discord.js';
 
@@ -50,9 +49,6 @@ export async function handleCommands(req, res, gameState) {
       
       case 'quirk':
         return await handleQuirkCommand(req, res, gameState);
-      
-      case 'use':
-        return await handleUseTraitCommand(req, res, gameState);
       
       case 'turn':
         return await handleTurnCommand(req, res, gameState);

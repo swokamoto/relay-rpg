@@ -5,14 +5,12 @@ import {
   getChannelId 
 } from '../utils/discord.js';
 import { 
-  validateTraitDescription, 
-  validateCharacterCompletion 
+  validateTraitDescription
 } from '../utils/validation.js';
-import { MESSAGES, EMOJIS, ADVENTURE_PHASES, SETUP_PHASES, CHARACTER_TRAITS } from '../config/constants.js';
+import { MESSAGES, EMOJIS, ADVENTURE_PHASES, CHARACTER_TRAITS } from '../config/constants.js';
 
-/**
- * Handle /name command - Set character name
- */
+const TRAIT_ICONS = { conviction: '📿', talent: '⚔️', quirk: '🎭' };
+
 export async function handleNameCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const characterName = req.body.data.options[0].value;
@@ -54,30 +52,18 @@ export async function handleNameCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(content, true));
 }
 
-/**
- * Handle /conviction command - Set character's conviction trait
- */
 export async function handleConvictionCommand(req, res, gameStorage) {
   return handleTraitCommand(req, res, gameStorage, CHARACTER_TRAITS.CONVICTION);
 }
 
-/**
- * Handle /talent command - Set character's talent trait
- */
 export async function handleTalentCommand(req, res, gameStorage) {
   return handleTraitCommand(req, res, gameStorage, CHARACTER_TRAITS.TALENT);
 }
 
-/**
- * Handle /quirk command - Set character's quirk trait
- */
 export async function handleQuirkCommand(req, res, gameStorage) {
   return handleTraitCommand(req, res, gameStorage, CHARACTER_TRAITS.QUIRK);
 }
 
-/**
- * Generic trait handler - works globally, not tied to adventures
- */
 async function handleTraitCommand(req, res, gameStorage, traitType) {
   const userId = getUserId(req);
   const description = req.body.data.options[0].value;
@@ -101,8 +87,7 @@ async function handleTraitCommand(req, res, gameStorage, traitType) {
     player.setTrait(traitType, validation.description);
     gameStorage.savePlayer(player);
     
-    // Get trait icon and name for response
-    const traitIcon = EMOJIS[traitType.toUpperCase()];
+    const traitIcon = TRAIT_ICONS[traitType];
     const traitName = traitType.charAt(0).toUpperCase() + traitType.slice(1);
     
     // Build response based on whether this is new or updated
@@ -135,9 +120,6 @@ async function handleTraitCommand(req, res, gameStorage, traitType) {
   }
 }
 
-/**
- * Handle /character command - Show player's global character sheet
- */
 export async function handleCharacterCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   
@@ -171,12 +153,11 @@ export async function handleCharacterCommand(req, res, gameStorage) {
   
   // Show traits with their usage status
   Object.entries(characterSheet.traits).forEach(([traitType, traitData]) => {
-    const traitIcon = EMOJIS[traitType.toUpperCase()];
+    const traitIcon = TRAIT_ICONS[traitType];
     const traitName = traitType.charAt(0).toUpperCase() + traitType.slice(1);
-    const usageStatus = traitData.used ? ' ✅ *Used*' : '';
     
     if (traitData.description) {
-      content += `${traitIcon} **${traitName}:** "${traitData.description}"${usageStatus}\n`;
+      content += `${traitIcon} **${traitName}:** "${traitData.description}"\n`;
     } else {
       content += `${traitIcon} **${traitName}:** *Not set* - use \`/${traitType}\`\n`;
     }
@@ -184,7 +165,7 @@ export async function handleCharacterCommand(req, res, gameStorage) {
   
   if (isComplete) {
     content += `\n✅ **Character Complete!** Ready for adventures.\n`;
-    content += `\n💡 **Usage:** In adventures, use \`/roll trait:conviction\` etc. for +2 bonus (once per adventure)`;
+    content += `\n💡 **Usage:** In adventures, use \`/turn\` with a trait option for +2 bonus (once per adventure)`;
   } else {
     const missing = [];
     if (!player.characterName) missing.push('📚 `/name`');
@@ -197,43 +178,4 @@ export async function handleCharacterCommand(req, res, gameStorage) {
   }
   
   return res.send(createSuccessResponse(content, true)); // Make ephemeral
-}
-
-/**
- * Handle /use command - Use a character trait for bonus
- */
-export async function handleUseTraitCommand(req, res, gameStorage) {
-  const userId = getUserId(req);
-  const channelId = getChannelId(req);
-  const traitType = req.body.data.options[0].value.toLowerCase();
-  
-  // Find active adventure for this thread
-  const activeGames = gameStorage.getActiveAdventures();
-  const adventure = Object.values(activeGames).find(game => game.threadId === channelId);
-  
-  if (!adventure) {
-    return res.send(createErrorResponse(MESSAGES.ERRORS.NO_ADVENTURE, true));
-  }
-  
-  if (adventure.phase !== ADVENTURE_PHASES.PLAYING) {
-    return res.send(createErrorResponse('❌ Adventure must be in progress to use traits!', true));
-  }
-  
-  if (!adventure.isParticipant(userId)) {
-    return res.send(createErrorResponse(MESSAGES.ERRORS.NOT_PARTICIPANT, true));
-  }
-
-  const player = adventure.getPlayer(userId);
-  const result = player.useTrait(traitType);
-  
-  if (!result.success) {
-    return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
-  }
-  
-  const traitIcon = EMOJIS[traitType.toUpperCase()];
-  const traitName = traitType.charAt(0).toUpperCase() + traitType.slice(1);
-  
-  const content = `${traitIcon} **${traitName} Used!**\n\n**Description:** "${result.trait.description}"\n\n🎲 **+2 bonus applied to your next roll!**`;
-  
-  return res.send(createSuccessResponse(content));
 }

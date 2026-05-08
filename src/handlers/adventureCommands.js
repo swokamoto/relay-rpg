@@ -8,14 +8,10 @@ import {
   postToChannel,
   addUserToThread
 } from '../utils/discord.js';
-import { formatParticipantList } from '../utils/gameHelpers.js';
 import { Adventure } from '../models/Adventure.js';
 import { gameStorage } from '../storage/gameState.js';
-import { MESSAGES, EMOJIS, ADVENTURE_PHASES, SETUP_PHASES, GAME_CONSTANTS, EPILOGUE_TYPES } from '../config/constants.js';
+import { MESSAGES, EMOJIS, ADVENTURE_PHASES, GAME_CONSTANTS, EPILOGUE_TYPES } from '../config/constants.js';
 
-/**
- * Handle /transition command - Bridge scenes with but/therefore statements
- */
 export async function handleTransitionCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -46,13 +42,6 @@ export async function handleTransitionCommand(req, res, gameStorage) {
   try {
     result = adventure.handleSceneTransition(userId, transitionStatement);
   } catch (error) {
-    console.error('Exception in handleSceneTransition:', error);
-    console.error('Adventure details:', {
-      id: adventure.id,
-      scene: adventure.scene,
-      phase: adventure.phase,
-      participants: adventure.participants
-    });
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} An error occurred during scene transition: ${error.message}`, 
       true
@@ -60,7 +49,6 @@ export async function handleTransitionCommand(req, res, gameStorage) {
   }
   
   if (!result.success) {
-    console.error('Scene transition failed:', result.error);
     return res.send(createErrorResponse(`${EMOJIS.ERROR} ${result.error}`, true));
   }
 
@@ -100,9 +88,6 @@ export async function handleTransitionCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(content));
 }
 
-/**
- * Handle /turn command - Narrative turn with resolution and action
- */
 export async function handleTurnCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -212,9 +197,6 @@ export async function handleTurnCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(content));
 }
 
-/**
- * Handle /begin command - Start or check adventure status
- */
 export async function handleBeginCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -234,23 +216,16 @@ export async function handleBeginCommand(req, res, gameStorage) {
   
   const sceneDescription = sceneOption.value.trim();
   
-  // Find thread info
-  const activeThreads = gameStorage.getActiveThreads();
-  const threadInfo = Object.values(activeThreads).find(t => t.threadId === channelId);
+  // Find the hook associated with this thread
+  const hook = gameStorage.findHookByThread(channelId);
   
-  if (!threadInfo) {
+  if (!hook) {
     return res.send(createErrorResponse(
       `${EMOJIS.ERROR} **Not an Adventure Thread**\n\n` +
       `This command only works in adventure threads.\n` +
       `Use \`/hooks\` in the main channel to find adventures to join!`,
       true
     ));
-  }
-  
-  // Find the hook
-  const hook = gameStorage.findHook(threadInfo.jobId);
-  if (!hook) {
-    return res.send(createErrorResponse(`${EMOJIS.ERROR} Story hook not found!`, true));
   }
   
   // Only the hook poster can start the adventure
@@ -304,7 +279,7 @@ export async function handleBeginCommand(req, res, gameStorage) {
   }
   
   if (!adventure) {
-    adventure = new Adventure(threadInfo.jobId, channelId, adventureParticipants);
+    adventure = new Adventure(hook.id, channelId, adventureParticipants);
     gameStorage.addAdventure(adventure);
   } else if (!adventure.locked) {
     // Update adventure participants to match current job participants
@@ -354,10 +329,8 @@ export async function handleBeginCommand(req, res, gameStorage) {
   
   // Remove hook from board since adventure has started
   try {
-    gameStorage.removeHook(threadInfo.jobId);
-    console.log(`Hook ${threadInfo.jobId} removed from board - adventure started`);
+    gameStorage.removeHook(hook.id);
   } catch (error) {
-    console.error('Failed to remove hook from board:', error);
     // Don't fail the adventure start if hook removal fails
   }
   
@@ -369,9 +342,6 @@ export async function handleBeginCommand(req, res, gameStorage) {
   ));
 }
 
-/**
- * Handle /status command - Show adventure status
- */
 export async function handleStatusCommand(req, res, gameStorage) {
   const channelId = getChannelId(req);
   
@@ -507,9 +477,6 @@ export async function handleStatusCommand(req, res, gameStorage) {
   }
 }
 
-/**
- * Handle /finale command - Quest Host describes final adventure outcome
- */
 export async function handleFinaleCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -564,9 +531,6 @@ export async function handleFinaleCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(content));
 }
 
-/**
- * Handle /epilogue command - Player epilogue responses
- */
 export async function handleEpilogueCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -700,9 +664,6 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(responseMessage));
 }
 
-/**
- * Handle /leave command - Leave current story or adventure
- */
 export async function handleLeaveCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -779,21 +740,14 @@ export async function handleLeaveCommand(req, res, gameStorage) {
         // Not enough players - end the adventure
         gameStorage.removeAdventure(adventure.id);
         
-        // Remove the associated thread if it exists
-        const activeThreads = gameStorage.getActiveThreads();
-        const threadInfo = Object.values(activeThreads).find(t => t.jobId === activeHook.id);
-        if (threadInfo) {
-          gameStorage.removeThread(activeHook.id);
-        }
-        
         // Notify remaining players that adventure ended
         try {
           const endMessage = `🚫 **Adventure Ended - Insufficient Players**\n\n` +
             `A participant has left, bringing the group below the minimum ${GAME_CONSTANTS.MIN_PLAYERS} players required.\n\n` +
             `*The adventure has been automatically concluded. You're free to join new adventures!*`;
           await postToChannel(adventure.threadId, endMessage);
-        } catch (error) {
-          console.error('Failed to notify players of adventure end:', error);
+        } catch {
+          // ignore notification failure
         }
       } else {
         // Adventure continues with remaining players - persist the change

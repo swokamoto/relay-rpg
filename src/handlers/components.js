@@ -7,18 +7,12 @@ import {
   createThread,
   addUserToThread
 } from '../utils/discord.js';
-import { 
-  formatParticipantList, 
-  getPlayerStatusMessage,
+import {
   truncateForThreadName
 } from '../utils/gameHelpers.js';
 import { config } from '../config/config.js';
 import { MESSAGES, EMOJIS, GAME_CONSTANTS } from '../config/constants.js';
-import process from 'process';
 
-/**
- * Handle hook join button clicks
- */
 export async function handleHookJoinButton(req, res, gameStorage, componentId) {
   const hookId = componentId.replace('join_hook_', '');
   const hook = gameStorage.findHook(hookId);
@@ -71,15 +65,11 @@ export async function handleHookJoinButton(req, res, gameStorage, componentId) {
   
   // Check if already joined - if so, redirect to existing thread
   if (hook.participants.includes(userId)) {
-    const activeThreads = gameStorage.getActiveThreads();
-    const threadInfo = activeThreads[hookId];
-    
-    if (threadInfo) {
-      // User is already in hook and thread exists - redirect them
+    if (hook.threadId) {
       return res.send(createSuccessResponse(
         `${EMOJIS.ADVENTURE} **Welcome back to your adventure!**\n\n` +
         `You're already part of "${hook.description}"\n\n` +
-        `Continue your adventure in <#${threadInfo.threadId}>! 🎲`,
+        `Continue your adventure in <#${hook.threadId}>! 🎲`,
         true
       ));
     } else {
@@ -98,11 +88,10 @@ export async function handleHookJoinButton(req, res, gameStorage, componentId) {
   }
   
   // Create or find existing thread
-  const activeThreads = gameStorage.getActiveThreads();
-  let threadInfo = activeThreads[hookId];
+  let threadId = hook.threadId;
   
   try {
-    if (!threadInfo) {
+    if (!threadId) {
       // Create new Discord thread
       const threadName = `${EMOJIS.SWORD} ${truncateForThreadName(hook.description)}`;
       
@@ -112,30 +101,19 @@ export async function handleHookJoinButton(req, res, gameStorage, componentId) {
         config.game.threadAutoArchiveDuration
       );
       
-      console.log('Thread created:', threadData);
-      
       if (!threadData || !threadData.id) {
         throw new Error('Thread creation failed - no thread ID returned');
       }
       
-      // Store thread info - only include actual participants
-      threadInfo = {
-        jobId: hookId,
-        threadId: threadData.id,
-        participants: [userId],
-        created: new Date()
-      };
-      gameStorage.addThread(hookId, threadInfo);
-      
-      console.log('Stored thread info:', threadInfo);
+      threadId = threadData.id;
+      hook.threadId = threadId;
       
       // Only add the joining user to thread
-      await addUserToThread(threadData.id, userId);
+      await addUserToThread(threadId, userId);
       
     } else {
       // Add new user to existing thread
-      threadInfo.participants.push(userId);
-      await addUserToThread(threadInfo.threadId, userId);
+      await addUserToThread(threadId, userId);
     }
     
     // Don't auto-create adventures - let /begin handle it
@@ -150,11 +128,10 @@ export async function handleHookJoinButton(req, res, gameStorage, componentId) {
       `**Players:** ${allParticipants.length}\n\n`;
     
     // Add thread link with safety check
-    if (threadInfo && threadInfo.threadId) {
-      content += `Continue in the adventure thread: <#${threadInfo.threadId}>! 🎲`;
+    if (threadId) {
+      content += `Continue in the adventure thread: <#${threadId}>! 🎲`;
     } else {
       content += `Thread is being created... please check the channel list! 🎲`;
-      console.error('Thread info missing or invalid:', threadInfo);
     }
     
     return res.send(createSuccessResponse(content, true));
@@ -169,17 +146,11 @@ export async function handleHookJoinButton(req, res, gameStorage, componentId) {
   }
 }
 
-/**
- * Handle browse stories button click
- */
 export async function handleViewAllHooksButton(req, res, gameStorage) {
   const { handleHooksCommand } = await import('./hookCommands.js');
   return await handleHooksCommand(req, res, gameStorage);
 }
 
-/**
- * Main component handler - Routes component interactions to appropriate handlers
- */
 export async function handleComponents(req, res, gameState) {
   const { data } = req.body;
   const componentId = data.custom_id;

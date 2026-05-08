@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { capitalize, InstallGlobalCommands } from './utils.js';
+import { InstallGlobalCommands } from './utils.js';
 const POST_COMMAND = {
   name: 'post',
   description: 'Post a story hook to the board',
@@ -82,36 +82,6 @@ const QUIRK_COMMAND = {
       name: 'description',
       description: 'What unique personality trait defines your character?',
       required: true,
-    }
-  ],
-  type: 1,
-  integration_types: [0, 1],
-  contexts: [0, 2],
-};
-
-const USE_COMMAND = {
-  name: 'use',
-  description: 'Use one of your traits for a +2 bonus on a dice roll',
-  options: [
-    {
-      type: 3,
-      name: 'trait',
-      description: 'Which trait to use (conviction, talent, or quirk)',
-      required: true,
-      choices: [
-        {
-          name: 'Conviction - What you fight for',
-          value: 'conviction'
-        },
-        {
-          name: 'Talent - What you excel at',
-          value: 'talent'
-        },
-        {
-          name: 'Quirk - Your personality trait',
-          value: 'quirk'
-        }
-      ]
     }
   ],
   type: 1,
@@ -319,6 +289,6 @@ const KICK_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [POST_COMMAND, HOOKS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, USE_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND, INVITE_COMMAND, KICK_COMMAND];
+const ALL_COMMANDS = [POST_COMMAND, HOOKS_COMMAND, BEGIN_COMMAND, NAME_COMMAND, CONVICTION_COMMAND, TALENT_COMMAND, QUIRK_COMMAND, STATUS_COMMAND, CHARACTER_COMMAND, TURN_COMMAND, TRUTH_COMMAND, TRANSITION_COMMAND, EPILOGUE_COMMAND, FINALE_COMMAND, LEAVE_COMMAND, INVITE_COMMAND, KICK_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

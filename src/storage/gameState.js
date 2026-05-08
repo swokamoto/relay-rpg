@@ -8,8 +8,6 @@ const stmts = {
   // Players
   upsertPlayer: db.prepare('INSERT OR REPLACE INTO players (user_id, data) VALUES (?, ?)'),
   getPlayer: db.prepare('SELECT data FROM players WHERE user_id = ?'),
-  getAllPlayers: db.prepare('SELECT data FROM players'),
-  countPlayers: db.prepare('SELECT COUNT(*) as count FROM players'),
 
   // Jobs
   insertJob: db.prepare('INSERT INTO jobs (id, status, data) VALUES (?, ?, ?)'),
@@ -28,14 +26,6 @@ const stmts = {
   getAdventureByJob: db.prepare('SELECT data FROM adventures WHERE job_id = ?'),
   getAllAdventures: db.prepare('SELECT data FROM adventures'),
   deleteAdventure: db.prepare('DELETE FROM adventures WHERE id = ?'),
-
-  // Threads
-  insertThread: db.prepare('INSERT OR REPLACE INTO threads (job_id, thread_id, data) VALUES (?, ?, ?)'),
-  getThread: db.prepare('SELECT data FROM threads WHERE job_id = ?'),
-  getThreadByThreadId: db.prepare('SELECT data FROM threads WHERE thread_id = ?'),
-  getAllThreads: db.prepare('SELECT data FROM threads'),
-  deleteThread: db.prepare('DELETE FROM threads WHERE job_id = ?'),
-  cleanupThreads: db.prepare("DELETE FROM threads WHERE json_extract(data, '$.created') < ? AND NOT EXISTS (SELECT 1 FROM adventures WHERE adventures.thread_id = threads.thread_id)"),
 };
 
 class GameStorage {
@@ -82,6 +72,10 @@ class GameStorage {
     return this.getOpenHooks(guildId).find(hook => hook.isUserInvolved(userId)) || null;
   }
 
+  findHookByThread(threadId) {
+    return this.getHookBoard(null).find(h => h.threadId === threadId) || null;
+  }
+
   // ─── Adventures ──────────────────────────────────────────────────────────────
 
   addAdventure(adventure) {
@@ -124,38 +118,6 @@ class GameStorage {
     return result;
   }
 
-  // ─── Threads ─────────────────────────────────────────────────────────────────
-
-  addThread(jobId, threadInfo) {
-    stmts.insertThread.run(jobId, threadInfo.threadId, JSON.stringify(threadInfo));
-    return threadInfo;
-  }
-
-  findThread(jobId) {
-    const row = stmts.getThread.get(jobId);
-    return row ? JSON.parse(row.data) : null;
-  }
-
-  findThreadByThreadId(threadId) {
-    const row = stmts.getThreadByThreadId.get(threadId);
-    return row ? JSON.parse(row.data) : null;
-  }
-
-  removeThread(jobId) {
-    const thread = this.findThread(jobId);
-    if (thread) stmts.deleteThread.run(jobId);
-    return thread;
-  }
-
-  getActiveThreads() {
-    const result = {};
-    stmts.getAllThreads.all().forEach(row => {
-      const thread = JSON.parse(row.data);
-      result[thread.jobId] = thread;
-    });
-    return result;
-  }
-
   // ─── Players ─────────────────────────────────────────────────────────────────
 
   getOrCreatePlayer(userId) {
@@ -176,29 +138,9 @@ class GameStorage {
     return player;
   }
 
-  getAllPlayers() {
-    const result = {};
-    stmts.getAllPlayers.all().forEach(row => {
-      const player = Player.fromJSON(JSON.parse(row.data));
-      result[player.userId] = player;
-    });
-    return result;
-  }
-
   hasCompleteCharacter(userId) {
     const player = this.getPlayer(userId);
     return player ? player.isCharacterComplete() : false;
-  }
-
-  getPlayerCount() {
-    return stmts.countPlayers.get().count;
-  }
-
-  getCompleteCharacterCount() {
-    return stmts.getAllPlayers.all()
-      .map(row => Player.fromJSON(JSON.parse(row.data)))
-      .filter(player => player.isCharacterComplete())
-      .length;
   }
 
   // ─── Cleanup ─────────────────────────────────────────────────────────────────
@@ -209,29 +151,8 @@ class GameStorage {
     return result.changes;
   }
 
-  cleanupOldThreads() {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const result = stmts.cleanupThreads.run(cutoff);
-    return result.changes;
-  }
-
-  // ─── Statistics ──────────────────────────────────────────────────────────────
-
-  getStats() {
-    return {
-      totalHooks: this.getHookBoard().length,
-      openHooks: this.getOpenHooks().length,
-      activeAdventures: Object.keys(this.getActiveAdventures()).length,
-      activeThreads: Object.keys(this.getActiveThreads()).length
-    };
-  }
-
-  // ─── Clear (testing/reset) ───────────────────────────────────────────────────
-
-  clear() {
-    db.exec('DELETE FROM players; DELETE FROM jobs; DELETE FROM adventures; DELETE FROM threads;');
-  }
 }
+
 
 // Create singleton instance
 const gameStorage = new GameStorage();

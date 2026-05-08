@@ -6,24 +6,11 @@ import {
   getGuildId
 } from '../utils/discord.js';
 import { 
-  validateAdventureDescription,
-  validateParticipantCount 
+  validateAdventureDescription
 } from '../utils/validation.js';
-import { 
-  formatParticipantList, 
-  getPlayerStatusMessage 
-} from '../utils/gameHelpers.js';
 import { Hook } from '../models/Hook.js';
 import { MESSAGES, EMOJIS } from '../config/constants.js';
-import { 
-  InteractionResponseType, 
-  InteractionResponseFlags, 
-  MessageComponentTypes 
-} from 'discord-interactions';
 
-/**
- * Handle /post command - Create a new story hook
- */
 export async function handlePostCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const channelId = getChannelId(req);
@@ -98,9 +85,6 @@ export async function handlePostCommand(req, res, gameStorage) {
   return res.send(createSuccessResponse(ephemeralContent, true, [joinButton]));
 }
 
-/**
- * Handle /hooks command - List available story hooks
- */
 export async function handleHooksCommand(req, res, gameStorage) {
   const userId = getUserId(req);
   const guildId = getGuildId(req);

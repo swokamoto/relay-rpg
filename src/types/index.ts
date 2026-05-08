@@ -45,9 +45,7 @@ export interface DiscordInteraction {
 
 // ─── Game Enum Value Types ───────────────────────────────────────────────────
 
-export type AdventurePhase = 'waiting' | 'setup' | 'playing' | 'completed';
-export type SetupPhase = 'character_creation' | 'complete';
-export type SceneState = 'setup' | 'active' | 'resolving' | 'complete';
+export type AdventurePhase = 'waiting' | 'playing' | 'completed';
 export type TraitType = 'conviction' | 'talent' | 'quirk';
 export type EpilogueType = 'growth' | 'thread' | 'hook';
 
@@ -61,9 +59,7 @@ export type ActionResult<T = Record<string, unknown>> = ActionSuccess<T> | Actio
 
 export interface CharacterTrait {
   description: string | null;
-  used: boolean;
   timestamp?: Date;
-  usedTimestamp?: Date;
 }
 
 export interface CharacterTraits {
@@ -72,29 +68,12 @@ export interface CharacterTraits {
   quirk: CharacterTrait;
 }
 
-export interface PlayerStats {
-  traitsUsed: number;
-  scenesParticipated: number;
-  successfulActions: number;
-}
-
 export interface PlayerData {
   userId: string;
   adventureId?: string;
   characterName: string | null;
   characterTraits: CharacterTraits;
-  stats: PlayerStats;
   created: Date | string;
-}
-
-export interface TraitUsageResult {
-  type: TraitType;
-  description: string;
-}
-
-export interface AvailableTrait {
-  type: TraitType;
-  description: string;
 }
 
 // ─── Adventure Types ─────────────────────────────────────────────────────────
@@ -144,9 +123,7 @@ export interface AdventureData {
   jobId: string;
   participants: string[];
   phase: AdventurePhase;
-  currentPhase: SetupPhase;
   scene: number;
-  sceneState: SceneState;
   sceneSuccesses: number;
   sceneFailures: number;
   consecutivePartials: number;
@@ -154,7 +131,6 @@ export interface AdventureData {
   created: Date | string;
   lastActivityAt: Date | string;
   locked: boolean;
-  questDefined: boolean;
   questHost: string | null;
   startedBy: string | null;
   openingScene: string | null;
@@ -163,7 +139,6 @@ export interface AdventureData {
   epilogueResponses: Record<string, unknown>;
   epiloguePhase: boolean;
   finaleContent: string | null;
-  players: Record<string, unknown>;
   adventureTraitUsage: Record<string, TraitUsageMap>;
   narrative: NarrativeState;
 }

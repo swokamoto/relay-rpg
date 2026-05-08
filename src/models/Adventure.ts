@@ -1,16 +1,11 @@
 import {
   ADVENTURE_PHASES,
-  SETUP_PHASES,
   GAME_CONSTANTS,
-  SCENE_STATES,
   EPILOGUE_TYPES,
 } from '../config/constants.js';
 import { generateAdventureId, deduplicate } from '../utils/gameHelpers.js';
-import { Player } from './Player.js';
 import type {
   AdventurePhase,
-  SetupPhase,
-  SceneState,
   TraitType,
   TraitUsageMap,
   TurnLock,
@@ -68,9 +63,7 @@ export class Adventure {
   jobId: string;
   participants: string[];
   phase: AdventurePhase;
-  currentPhase: SetupPhase;
   scene: number;
-  sceneState: SceneState;
   sceneSuccesses: number;
   sceneFailures: number;
   consecutivePartials: number;
@@ -78,7 +71,6 @@ export class Adventure {
   created: Date;
   lastActivityAt: Date;
   locked: boolean;
-  questDefined: boolean;
   questHost: string | null;
   startedBy: string | null;
   openingScene: string | null;
@@ -87,7 +79,6 @@ export class Adventure {
   epilogueResponses: Record<string, EpilogueResponse | null>;
   epiloguePhase: boolean;
   finaleContent: string | null;
-  players: Record<string, Player>;
   adventureTraitUsage: Record<string, TraitUsageMap>;
   narrative: NarrativeState;
 
@@ -97,9 +88,7 @@ export class Adventure {
     this.jobId = jobId;
     this.participants = deduplicate(participants) as string[];
     this.phase = ADVENTURE_PHASES.WAITING as AdventurePhase;
-    this.currentPhase = SETUP_PHASES.COMPLETE as SetupPhase;
     this.scene = 1;
-    this.sceneState = SCENE_STATES.SETUP as SceneState;
     this.sceneSuccesses = 0;
     this.sceneFailures = 0;
     this.consecutivePartials = 0;
@@ -107,7 +96,6 @@ export class Adventure {
     this.created = new Date();
     this.lastActivityAt = new Date();
     this.locked = false;
-    this.questDefined = false;
     this.questHost = null;
     this.startedBy = null;
     this.openingScene = null;
@@ -116,7 +104,6 @@ export class Adventure {
     this.epilogueResponses = {};
     this.epiloguePhase = false;
     this.finaleContent = null;
-    this.players = {};
     this.adventureTraitUsage = {};
 
     this.participants.forEach((playerId) => {
@@ -186,9 +173,7 @@ export class Adventure {
     }
     this.phase = ADVENTURE_PHASES.PLAYING as AdventurePhase;
     this.locked = true;
-    this.currentPhase = SETUP_PHASES.COMPLETE as SetupPhase;
     this.scene = 1;
-    this.sceneState = SCENE_STATES.ACTIVE as SceneState;
     this.openingScene = sceneDescription;
     this.startedBy = userId ?? null;
     return {
@@ -230,12 +215,6 @@ export class Adventure {
     return { success: true, truth };
   }
 
-  resetAdventureTraitUsage(): void {
-    this.participants.forEach((playerId) => {
-      this.adventureTraitUsage[playerId] = { conviction: false, talent: false, quirk: false };
-    });
-  }
-
   getPlayerTraitUsage(userId: string): TraitUsageMap {
     return this.adventureTraitUsage[userId] ?? { conviction: false, talent: false, quirk: false };
   }
@@ -266,12 +245,6 @@ export class Adventure {
       }
     }
     return false;
-  }
-
-  cleanupStaleLocks(): { turnLockCleared: boolean; transitionLockCleared: boolean; anyCleared: boolean } {
-    const turnLockCleared = this.cleanupStaleTurnLock();
-    const transitionLockCleared = this.cleanupStaleTransitionLock();
-    return { turnLockCleared, transitionLockCleared, anyCleared: turnLockCleared || transitionLockCleared };
   }
 
   takeTurn(
@@ -539,7 +512,6 @@ export class Adventure {
     if (this.sceneSuccesses >= 3) {
       sceneComplete = true;
       sceneResult = 'success';
-      this.sceneState = SCENE_STATES.TRANSITION as SceneState;
       this.narrative.pendingTransition = {
         completingPlayer: userId,
         sceneResult: 'success',
@@ -549,7 +521,6 @@ export class Adventure {
     } else if (this.sceneFailures >= 3) {
       sceneComplete = true;
       sceneResult = 'failure';
-      this.sceneState = SCENE_STATES.TRANSITION as SceneState;
       this.narrative.pendingTransition = {
         completingPlayer: userId,
         sceneResult: 'failure',
@@ -604,7 +575,6 @@ export class Adventure {
     if (this.scene >= GAME_CONSTANTS.MAX_SCENES) {
       this.sceneFailures = this.failedScenes;
       this.sceneSuccesses = 0;
-      this.sceneState = SCENE_STATES.ACTIVE as SceneState;
       return {
         success: true,
         finalScene: true,
@@ -614,7 +584,6 @@ export class Adventure {
       };
     }
 
-    this.sceneState = SCENE_STATES.SETUP as SceneState;
     this.sceneSuccesses = 0;
     this.sceneFailures = 0;
     this.consecutivePartials = 0;
@@ -635,23 +604,12 @@ export class Adventure {
     return null;
   }
 
-  completeAdventure(finalSceneSuccess: boolean): ActionResult<{ result: string; failedScenes: number; message: string }> {
-    this.phase = ADVENTURE_PHASES.COMPLETED as AdventurePhase;
-    return {
-      success: true,
-      result: finalSceneSuccess ? 'success' : 'failure',
-      failedScenes: this.failedScenes,
-      message: finalSceneSuccess ? 'Adventure completed successfully!' : 'Adventure ended in failure.',
-    };
-  }
-
   beginEpilogue(questHostId: string): ActionResult<{ questHost: string }> {
     if (this.phase !== ADVENTURE_PHASES.COMPLETED) {
       return { success: false, error: 'Adventure must be completed to begin epilogue' };
     }
     this.epiloguePhase = true;
     this.questHost = questHostId;
-    this.sceneState = SCENE_STATES.EPILOGUE as SceneState;
     this.participants.forEach((userId) => {
       this.epilogueResponses[userId] = null;
     });
@@ -709,29 +667,12 @@ export class Adventure {
     };
   }
 
-  getCharacterSheet(userId: string): unknown {
-    const player = this.players[userId];
-    return player ? player.getCharacterSheet() : null;
-  }
-
-  resetPlayerTraits(): void {
-    Object.values(this.players).forEach((player) => player.resetTraitUsage());
-  }
-
-  checkSceneTransition(): { shouldTransition: boolean; result?: string } {
-    if (this.sceneSuccesses >= 3) return { shouldTransition: true, result: 'success' };
-    if (this.sceneFailures >= 3) return { shouldTransition: true, result: 'failure' };
-    return { shouldTransition: false };
-  }
-
   getStatus(): unknown {
     return {
       id: this.id,
       phase: this.phase,
-      currentPhase: this.currentPhase,
       scene: this.scene,
       maxScenes: GAME_CONSTANTS.MAX_SCENES,
-      sceneState: this.sceneState,
       sceneSuccesses: this.sceneSuccesses,
       sceneFailures: this.sceneFailures,
       failedScenes: this.failedScenes,
@@ -741,40 +682,20 @@ export class Adventure {
     };
   }
 
-  getCharacterCreationProgress(): unknown {
-    const completed = this.participants.filter((userId) => {
-      const player = this.players[userId];
-      return player && player.isCharacterComplete();
-    });
-    return {
-      completed: completed.length,
-      total: this.participants.length,
-      ready: completed.length === this.participants.length,
-      completedPlayers: completed,
-    };
-  }
-
   toJSON(): AdventureData {
-    const playersData: Record<string, unknown> = {};
-    Object.entries(this.players).forEach(([userId, player]) => {
-      playersData[userId] = player.toJSON();
-    });
     return {
       id: this.id,
       threadId: this.threadId,
       jobId: this.jobId,
       participants: this.participants,
       phase: this.phase,
-      currentPhase: this.currentPhase,
       scene: this.scene,
-      sceneState: this.sceneState,
       sceneSuccesses: this.sceneSuccesses,
       sceneFailures: this.sceneFailures,
       failedScenes: this.failedScenes,
       created: this.created,
       lastActivityAt: this.lastActivityAt,
       locked: this.locked,
-      questDefined: this.questDefined,
       questHost: this.questHost,
       startedBy: this.startedBy ?? null,
       openingScene: this.openingScene,
@@ -784,7 +705,6 @@ export class Adventure {
       epiloguePhase: this.epiloguePhase,
       finaleContent: this.finaleContent,
       consecutivePartials: this.consecutivePartials,
-      players: playersData,
       adventureTraitUsage: this.adventureTraitUsage,
       narrative: this.narrative,
     };
@@ -799,16 +719,13 @@ export class Adventure {
       jobId: data.jobId,
       participants: data.participants,
       phase: data.phase,
-      currentPhase: data.currentPhase,
       scene: data.scene,
-      sceneState: data.sceneState ?? SCENE_STATES.SETUP,
       sceneSuccesses: data.sceneSuccesses ?? 0,
       sceneFailures: data.sceneFailures ?? 0,
       consecutivePartials: data.consecutivePartials ?? 0,
       failedScenes: data.failedScenes ?? 0,
       created: new Date(data.created),
       locked: data.locked,
-      questDefined: data.questDefined,
       questHost: data.questHost ?? null,
       openingScene: data.openingScene ?? null,
       sceneTruths: data.sceneTruths ?? {},
@@ -829,17 +746,6 @@ export class Adventure {
         transitionLock: null,
       },
     });
-
-    adventure.players = {};
-    if (data.players) {
-      Object.entries(data.players as Record<string, unknown>).forEach(([userId, playerData]) => {
-        adventure.players[userId] = Player.fromJSON(playerData as import('../types/index.js').PlayerData);
-      });
-    } else {
-      adventure.participants.forEach((userId) => {
-        adventure.players[userId] = new Player(userId);
-      });
-    }
 
     return adventure;
   }

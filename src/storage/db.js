@@ -35,12 +35,6 @@ db.exec(`
     job_id    TEXT UNIQUE,
     data      TEXT NOT NULL
   );
-
-  CREATE TABLE IF NOT EXISTS threads (
-    job_id    TEXT PRIMARY KEY,
-    thread_id TEXT UNIQUE,
-    data      TEXT NOT NULL
-  );
 `);
 
 export default db;

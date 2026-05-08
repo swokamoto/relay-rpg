@@ -1,9 +1,7 @@
 import { generateHookId } from '../utils/gameHelpers.js';
 import { GAME_CONSTANTS } from '../config/constants.js';
 
-/**
- * Hook class to manage story hook postings
- */
+
 export class Hook {
   constructor(description, postedBy, channelId, guildId) {
     this.id = generateHookId();
@@ -14,13 +12,10 @@ export class Hook {
     this.participants = [];
     this.created = new Date();
     this.status = 'open'; // open, in-progress, completed
+    this.threadId = null;
   }
 
-  /**
-   * Add a participant to the job
-   * @param {string} userId - User ID to add
-   * @returns {Object} - Result of adding participant
-   */
+
   addParticipant(userId) {
     // Check if user is already a participant
     if (this.participants.includes(userId)) {
@@ -54,11 +49,7 @@ export class Hook {
     };
   }
 
-  /**
-   * Remove a participant from the job
-   * @param {string} userId - User ID to remove
-   * @returns {Object} - Result of removing participant
-   */
+
   removeParticipant(userId) {
     const index = this.participants.indexOf(userId);
     
@@ -77,36 +68,22 @@ export class Hook {
     };
   }
 
-  /**
-   * Get all participant IDs (does not include job poster unless they joined)
-   * @returns {Array} - Array of participant IDs
-   */
+
   getAllParticipants() {
     return [...this.participants];
   }
 
-  /**
-   * Get total count including poster (for display purposes)
-   * @returns {number} - Total participant count including poster
-   */
+
   getTotalParticipants() {
     return this.participants.length + 1; // +1 for poster
   }
 
-  /**
-   * Check if user is involved in this job (only actual participants)
-   * @param {string} userId - User ID to check
-   * @returns {boolean} - Whether user is involved
-   */
+
   isUserInvolved(userId) {
     return this.participants.includes(userId);
   }
 
-  /**
-   * Check if user can join this job
-   * @param {string} userId - User ID to check
-   * @returns {boolean} - Whether user can join
-   */
+
   canUserJoin(userId) {
     if (userId === this.postedBy) {
       return !this.participants.includes(userId); // Poster can join if not already a participant
@@ -114,10 +91,7 @@ export class Hook {
     return this.status === 'open' && !this.participants.includes(userId);
   }
 
-  /**
-   * Check if job is ready to start
-   * @returns {Object} - Ready status
-   */
+
   isReadyToStart() {
     const totalParticipants = this.participants.length; // Don't auto-include poster
     
@@ -128,32 +102,22 @@ export class Hook {
     };
   }
 
-  /**
-   * Mark job as in progress (adventure started)
-   */
+
   markInProgress() {
     this.status = 'in-progress';
   }
 
-  /**
-   * Mark job as completed
-   */
+
   markCompleted() {
     this.status = 'completed';
   }
 
-  /**
-   * Check if job can accept more participants
-   * @returns {boolean} - Whether job accepts participants
-   */
+
   canAcceptParticipants() {
     return this.status === 'open';
   }
 
-  /**
-   * Get job summary for display
-   * @returns {Object} - Job display data
-   */
+
   getSummary() {
     const readyStatus = this.isReadyToStart();
     
@@ -170,10 +134,7 @@ export class Hook {
     };
   }
 
-  /**
-   * Generate display text for the job
-   * @returns {string} - Formatted job display
-   */
+
   getDisplayText() {
     const readyStatus = this.isReadyToStart();
     const statusEmoji = readyStatus.ready ? '✅' : '⏳';
@@ -187,10 +148,7 @@ export class Hook {
            `Status: ${statusText}`;
   }
 
-  /**
-   * Serialize job for storage
-   * @returns {Object} - Serializable object
-   */
+
   toJSON() {
     return {
       id: this.id,
@@ -200,15 +158,12 @@ export class Hook {
       guildId: this.guildId || null,
       participants: this.participants,
       created: this.created,
-      status: this.status
+      status: this.status,
+      threadId: this.threadId || null
     };
   }
 
-  /**
-   * Create Hook from serialized data
-   * @param {Object} data - Serialized hook data
-   * @returns {Hook} - Hook instance
-   */
+
   static fromJSON(data) {
     const hook = Object.create(Hook.prototype);
     return Object.assign(hook, data, {

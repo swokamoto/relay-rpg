@@ -70,8 +70,8 @@ export async function handleTransitionCommand(req, res, gameStorage) {
       // Auto-designate the completing player as quest host
       const questHostResult = adventure.beginEpilogue(userId);
       if (questHostResult.success) {
-        content += `🎭 **Host Designated:** <@${userId}>\n\n`;
-        content += `📜 **As the Host, describe the final outcome of this story using** \`/finale\`\n\n`;
+        content += `📜 **<@${userId}> — your action ended the story. You write the finale!**\n\n`;
+        content += `Use \`/finale\` to describe the story's conclusion.\n\n`;
         content += `*Once the finale is posted, all players can share their epilogue responses.*`;
       }
     }
@@ -159,10 +159,10 @@ export async function handleTurnCommand(req, res, gameStorage) {
     content += ` (${result.turn.roll.traitUsed.type}: "${result.turn.roll.traitUsed.description}")`;
   }
   
-  // Show scene status inline
+  // Show scene status on new line
   const successEmojis = '✅'.repeat(result.sceneStatus.successes);
   const failureEmojis = '❌'.repeat(result.sceneStatus.failures);
-  content += ` | Scene ${result.sceneStatus.scene}: ${successEmojis}${failureEmojis}`;
+  content += `\nScene ${result.sceneStatus.scene}: ${successEmojis}${failureEmojis}`;
   
   // Check if scene is complete
   if (result.sceneStatus.complete) {
@@ -178,8 +178,8 @@ export async function handleTurnCommand(req, res, gameStorage) {
         if (advancementResult.needsQuestHostOutcome) {
           const questHostResult = adventure.beginEpilogue(userId);
           if (questHostResult.success) {
-            content += `🎭 **Host Designated:** <@${userId}>\n\n`;
-            content += `📜 **As the Host, describe the final outcome of this story using** \`/finale\`\n\n`;
+            content += `📜 **<@${userId}> — your action ended the story. You write the finale!**\n\n`;
+            content += `Use \`/finale\` to describe the story's conclusion.\n\n`;
             content += `*Once the finale is posted, all players can share their epilogue responses.*`;
           }
         }
@@ -455,7 +455,11 @@ export async function handleStatusCommand(req, res, gameStorage) {
           content += `${typeEmoji} <@${response.userId}>: "${response.response.content}"\n`;
         });
       } else {
-        content += `**Quest Host:** <@${epilogueStatus.questHost}>\n`;
+        if (adventure.finaleContent) {
+          content += `**Finale written by:** <@${adventure.finaleContent.author}>\n`;
+        } else {
+          content += `**Awaiting finale from:** <@${epilogueStatus.questHost}>\n`;
+        }
         content += `**Epilogue Progress:** ${epilogueStatus.completed}/${epilogueStatus.total} responses\n\n`;
         
         if (epilogueStatus.pendingPlayers.length > 0) {
@@ -490,8 +494,7 @@ export async function handleFinaleCommand(req, res, gameStorage) {
   // Check if adventure is completed and epilogue phase started
   if (!adventure.epiloguePhase || adventure.questHost !== userId) {
     return res.send(createErrorResponse(
-      `${EMOJIS.ERROR} Only the designated Host can provide the finale! ` +
-      `The Host is designated when the story completes.`,
+      `${EMOJIS.ERROR} Only the player who completed the final act can write the finale!`,
       true
     ));
   }
@@ -602,7 +605,14 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
     try {
       const parentChannelId = await getThreadParentChannel(channelId);
       
-      let chronicleContent = `📚 **STORY CHRONICLE COMPLETE** 📚\n\n`;
+      let chronicleContent = `📚 **STORY CHRONICLE** 📚\n\n`;
+
+      // Add story title from hook description
+      const hook = gameStorage.findHook(adventure.jobId);
+      if (hook && hook.description) {
+        chronicleContent += `📖 **"${hook.description}"**\n\n`;
+        chronicleContent += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      }
       
       // Add finale
       if (adventure.finaleContent) {
@@ -611,7 +621,7 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
         const finaleCharacterName = finalePlayer ? finalePlayer.getCharacterName() : 'Unknown Character';
         
         chronicleContent += `🎭 **FINALE** - *The Story Concludes*\n`;
-        chronicleContent += `**Host:** <@${adventure.finaleContent.author}> (${finaleCharacterName})\n\n`;
+        chronicleContent += `**Written by:** <@${adventure.finaleContent.author}> (${finaleCharacterName})\n\n`;
         chronicleContent += `**"${adventure.finaleContent.content}"**\n\n`;
         chronicleContent += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
       }
@@ -646,17 +656,16 @@ export async function handleEpilogueCommand(req, res, gameStorage) {
         }
       }
       
-      chronicleContent += `🌟 **Thank you to all participants!**`;
+      chronicleContent += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      chronicleContent += `*Continue the story — use \`/post\` to put up a new hook or \`/hooks\` to join one already waiting.*`;
       
       await postToChannel(parentChannelId, chronicleContent);
     } catch (error) {
       console.error('Failed to post story chronicle to general chat:', error);
     }
     
-    responseMessage += `🎊 **All Epilogue Contributions Complete!** \n\n`;
-    responseMessage += `This story and its community contributions have been recorded. `;
-    responseMessage += `Thank you for expanding our shared world! 🌟\n\n`;
-    responseMessage += `*These epilogue contributions can inspire future stories and enrich the ongoing narrative.*`;
+    responseMessage += `🎊 **Chronicle posted to the community!**\n\n`;
+    responseMessage += `The story is on the record. Use \`/post\` to put up a new hook or \`/hooks\` to find what's next.`;
   } else {
     responseMessage += `📝 **Awaiting epilogue from ${result.remainingCount} more player(s)**`;
   }

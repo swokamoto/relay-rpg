@@ -11,6 +11,8 @@ A multiplayer Discord bot where players build stories together, taking turns to 
 
 ## How I Built It
 
+➡️ **[System Design Overview](https://github.com/swokamoto/system-design-notes/blob/main/relay-rpg.md)**
+
 ### Keeping track of whose turn it is
 Each story has a state object that tracks the current player, what's waiting to happen, and where the scene is in its lifecycle. Before any action goes through, the bot checks whether it actually makes sense right now — wrong player, wrong phase, or something already in progress all get caught and rejected with a helpful message.
 
